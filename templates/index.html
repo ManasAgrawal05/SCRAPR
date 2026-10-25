@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block bodyclass %}home{% endblock %}
 {% block body %}
-<header class="topbar"><a href="https://serpapi.com" target="_blank" rel="noopener">Powered by SerpAPI</a></header>
+<header class="topbar">
+  {% include "_topbar.html" %}
+  </header>
 <main class="home-main">
   <img class="home-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" width="400" height="110">
   {% set autofocus = true %}{% set q = "" %}{% set placeholder = "Type Game Code" %}
@@ -11,5 +13,5 @@
     <button type="submit" form="searchForm" class="btn" id="btnSearch">Join Lobby</button>
   </div>
 </main>
-<footer class="home-footer"><div>SCRAPR</div></footer>
+<footer class="home-footer"><div>SCRAPR &middot; search powered by <a href="https://serpapi.com" target="_blank" rel="noopener">SerpAPI</a></div></footer>
 {% endblock %}

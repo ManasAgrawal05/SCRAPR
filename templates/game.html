@@ -1,16 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Lobby {{ game_id }} - SCRAPR{% endblock %}
 {% block body %}
-<main class="game-main" data-game="{{ game_id }}" id="lobby">
+{% set game = game_id %}{% set q = '' %}{% set page = '' %}
+<div id="lobby">
+<header class="topbar">{% include "_topbar.html" %}</header>
+<main class="game-main" data-game="{{ game_id }}">
   <a href="/"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="50"></a>
   <div class="game-code">{{ game_id }}</div>
   <div class="game-status" id="status">Connecting…</div>
   <ul class="game-players" id="players"></ul>
   <button type="button" class="btn" id="btnStart" hidden>Start Game</button>
 </main>
+</div>
 
 <div id="searchview" hidden>
-  {% set q = '' %}{% set game = game_id %}{% set page = '' %}
   {% include "_hud.html" %}
   <main class="home-main">
     <img class="home-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" width="400" height="110">
@@ -52,7 +55,8 @@
       $("players").innerHTML = "";
       g.players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = p.name + (me && me.id === p.id ? " (you)" : "");
+        if (p.avatar) { const im = document.createElement("img"); im.src = p.avatar; im.className = "li-av"; li.append(im); }
+        li.append(document.createTextNode(p.name + (me && me.id === p.id ? " (you)" : "")));
         if (me && me.id === p.id) li.className = "me";
         $("players").appendChild(li);
       });

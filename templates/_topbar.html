@@ -1,0 +1,23 @@
+<div class="tb-widgets" data-game="{{ game or '' }}">
+  <button type="button" class="top-icon tb-apps" aria-label="{{ 'Leaderboard' if game else 'SCRAPR apps' }}" title="{{ 'Leaderboard' if game else 'SCRAPR apps' }}"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+  <button type="button" class="tb-profile" aria-label="Profile" title="Profile"><span class="av"></span><span class="pname"></span></button>
+
+  <div class="tb-pop" hidden>
+    <h3>Your profile</h3>
+    <div class="pop-avatar">
+      <span class="av av-lg pop-preview"></span>
+      <label class="btn pop-file">Add image<input type="file" accept="image/*" hidden></label>
+      <button type="button" class="linkbtn pop-remove" hidden>Remove</button>
+    </div>
+    <label class="pop-label">Username
+      <input class="pop-name" maxlength="24" placeholder="Username" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="pop-error"></div>
+    <div class="pop-actions"><button type="button" class="btn pop-cancel">Cancel</button><button type="button" class="btn btn-primary pop-save">Save</button></div>
+  </div>
+
+  <div class="tb-lb" hidden>
+    <div class="lb-head"><b>Leaderboard</b><button type="button" class="lb-close" aria-label="Close leaderboard">&times;</button></div>
+    <ol class="lb-list"></ol>
+  </div>
+</div>

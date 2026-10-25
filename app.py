@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
-from flask import Flask, jsonify, redirect, render_template, request
+from flask import Flask, Response, jsonify, redirect, render_template, request
 
 import proxy
 from game import GameError, GameManager
@@ -106,8 +106,9 @@ def _body():
 @app.post("/api/games")
 def host_game():
     game = games.create()
+    body = _body()
     with game.lock:
-        player = game.add_player(str(_body().get("name", ""))[:24])
+        player = game.add_player(str(body.get("name", "")).strip()[:24], body.get("avatar"))
     return jsonify(game=game.view(), player=player), 201
 
 
@@ -115,7 +116,8 @@ def host_game():
 def join_game(game_id):
     game = games.get(game_id)
     with game.lock:
-        player = game.add_player(str(_body().get("name", ""))[:24])
+        body = _body()
+        player = game.add_player(str(body.get("name", "")).strip()[:24], body.get("avatar"))
         return jsonify(game=game.view(), player=player)
 
 
@@ -124,6 +126,25 @@ def game_state(game_id):
     game = games.get(game_id)
     with game.lock:
         return jsonify(game.view())
+
+
+@app.post("/api/games/<game_id>/profile")
+def set_profile(game_id):
+    game = games.get(game_id)
+    body = _body()
+    with game.lock:
+        game.set_profile(request.headers.get("X-Player-Token"), body.get("name"), body.get("avatar"))
+        return jsonify(game.view())
+
+
+@app.get("/api/games/<game_id>/avatar/<player_id>")
+def avatar(game_id, player_id):
+    game = games.get(game_id)
+    with game.lock:
+        data = game.avatar_bytes(player_id)
+    if not data:
+        return "", 404
+    return Response(data, mimetype="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.post("/api/games/<game_id>/start")

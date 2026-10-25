@@ -4,8 +4,10 @@
     const err = document.createElement("div");
     err.className = "lobby-error";
     document.getElementById("homeButtons").after(err);
+    const profile = () => { try { return JSON.parse(sessionStorage.getItem("scrapr:profile")) || {}; } catch (_) { return {}; } };
     const go = async (path, body) => {
       err.textContent = "";
+      body = { ...body, name: profile().name || "", avatar: profile().avatar || "" };
       try {
         const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const data = await r.json();

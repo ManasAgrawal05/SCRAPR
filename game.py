@@ -1,4 +1,6 @@
 """In-memory lobby + game manager. The actual game rules live in an Engine subclass."""
+import base64
+import binascii
 import secrets
 import threading
 import time
@@ -7,6 +9,8 @@ ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
 ID_LENGTH = 5
 MAX_PLAYERS = 8  # artificial cap
 MIN_PLAYERS = 2
+AVATAR_PREFIX = "data:image/jpeg;base64,"
+AVATAR_MAX = 40000  # characters; the browser downsizes to ~96px
 STALE_AFTER = 6 * 3600
 EVENT_STAT = {"search": "searches", "click": "clicks"}
 MAX_EVENTS = 5000
@@ -17,6 +21,19 @@ class GameError(Exception):
     def __init__(self, message, status=400):
         super().__init__(message)
         self.status = status
+
+
+def clean_avatar(value):
+    """Validate a downsized JPEG data URL; returns it, or None for 'no image'."""
+    if not value:
+        return None
+    if not isinstance(value, str) or len(value) > AVATAR_MAX or not value.startswith(AVATAR_PREFIX):
+        raise GameError("Invalid image")
+    try:
+        base64.b64decode(value[len(AVATAR_PREFIX):], validate=True)
+    except (binascii.Error, ValueError):
+        raise GameError("Invalid image")
+    return value
 
 
 class Engine:
@@ -57,19 +74,35 @@ class Game:
         self.touched = time.time()
         self.lock = threading.Lock()
 
-    def add_player(self, name):
+    def add_player(self, name, avatar=None):
         if self.status in ("playing", "finished"):
             raise GameError("Game already started", 409)
         if len(self.players) >= MAX_PLAYERS:
             raise GameError("Lobby is full", 409)
         player = {"id": f"p{len(self.players) + 1}", "name": name or f"Player {len(self.players) + 1}",
-                  "token": secrets.token_urlsafe(16)}
+                  "avatar": clean_avatar(avatar), "avatar_v": 1, "token": secrets.token_urlsafe(16)}
         self.players.append(player)
         self.stats[player["id"]] = {"searches": 0, "clicks": 0, "words": 0}
         if len(self.players) >= MIN_PLAYERS:
             self.status = "ready"
         self._bump()
         return player
+
+    def set_profile(self, token, name, avatar):
+        """Update the caller's display name / image. avatar: omitted=keep, ''=remove."""
+        player = self.player_for(token)
+        if isinstance(name, str) and name.strip():
+            player["name"] = name.strip()[:24]
+        if avatar is not None:
+            player["avatar"] = clean_avatar(avatar)
+            player["avatar_v"] += 1
+        self._bump()
+
+    def avatar_bytes(self, player_id):
+        for p in self.players:
+            if p["id"] == player_id and p["avatar"]:
+                return base64.b64decode(p["avatar"][len(AVATAR_PREFIX):])
+        return None
 
     def start(self, token):
         player = self.player_for(token)
@@ -135,7 +168,9 @@ class Game:
             "id": self.id,
             "status": self.status,
             "version": self.version,
-            "players": [{"id": p["id"], "name": p["name"]} for p in self.players],
+            "players": [{"id": p["id"], "name": p["name"],
+                         "avatar": f"/api/games/{self.id}/avatar/{p['id']}?v={p['avatar_v']}" if p["avatar"] else None}
+                        for p in self.players],
             "state": self.engine.state() if self.status in ("playing", "finished") else None,
             "started_at": self.started_at,
             "now": time.time(),
