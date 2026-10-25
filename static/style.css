@@ -231,3 +231,22 @@ body.viewer { display: flex; flex-direction: column; height: 100vh; }
 .app-detail h3 { margin: 0 0 6px; font-size: 18px; font-weight: 400; }
 .app-detail ul { margin: 0; padding-left: 18px; }
 .app-detail li { margin: 6px 0; }
+
+/* lobby settings */
+.game-settings { margin: 0 0 20px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 16px; text-align: left; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; font-size: 14px; }
+.set-row + .set-row { border-top: 1px solid var(--border); }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 18px; overflow: hidden; flex: none; }
+.seg button { border: 0; background: none; color: var(--fg); font: 14px arial, sans-serif; padding: 6px 16px; cursor: pointer; }
+.seg button.on { background: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .seg button.on { color: #202124; } }
+.seg button:disabled, .switch:disabled { cursor: default; }
+.seg button:disabled:not(.on) { opacity: .6; }
+.switch { width: 18px; height: 18px; accent-color: var(--accent); flex: none; cursor: pointer; }
+.set-note { color: var(--muted); font-size: 12px; padding: 0 0 8px; min-height: 0; }
+.set-note:empty { display: none; }
+.app-detail h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.apps-grid { grid-template-columns: repeat(3, 1fr); }
+/* one tile: shrink the popup to fit it; the rules text still gets the full width */
+.tb-rules:has(.apps-grid:not([hidden])) { width: 128px; }
+.tb-rules:has(.apps-grid:not([hidden])) .apps-grid { grid-template-columns: 1fr; }

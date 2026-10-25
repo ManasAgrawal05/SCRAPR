@@ -82,7 +82,7 @@ def num(n):
 def index():
     # numbers come from the engine's constants so the rules text can't drift from the game
     rules = dict(
-        rounds=min(quiz.ROUNDS, len(quiz.QUESTIONS)), min_players=MIN_PLAYERS, max_players=MAX_PLAYERS,
+        rounds=min(quiz.ROUNDS, *(len(v) for v in quiz.QUESTIONS.values())), min_players=MIN_PLAYERS, max_players=MAX_PLAYERS,
         base=quiz.BASE, per_sec=quiz.TIME_PENALTY_PER_SEC, max_time=quiz.MAX_TIME_PENALTY,
         per_click=quiz.CLICK_PENALTY, max_click=quiz.MAX_CLICK_PENALTY,
         per_wrong=quiz.WRONG_PENALTY, max_wrong=quiz.MAX_WRONG_PENALTY,
@@ -155,6 +155,14 @@ def avatar(game_id, player_id):
     if not data:
         return "", 404
     return Response(data, mimetype="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.post("/api/games/<game_id>/settings")
+def set_settings(game_id):
+    game = games.get(game_id)
+    with game.lock:
+        game.set_settings(request.headers.get("X-Player-Token"), _body())
+        return jsonify(game.view())
 
 
 @app.post("/api/games/<game_id>/start")

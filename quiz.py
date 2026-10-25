@@ -17,28 +17,64 @@ TIME_PENALTY_PER_SEC, MAX_TIME_PENALTY = 2, 500
 CLICK_PENALTY, MAX_CLICK_PENALTY = 10, 200
 WRONG_PENALTY, MAX_WRONG_PENALTY = 50, 200
 
-# Every question chains 2-4 facts, so no single search returns the answer; each answer was
-# checked against Wikipedia. Add variants a player might type (units, spellings) to "answers".
-QUESTIONS = [
-    {"question": "What is the elevation, in metres, of the highest point in the country whose capital is the westernmost capital city of mainland Europe?",
-     "answers": ["2351", "2351 m", "2351 metres"]},
-    {"question": "How many Earth days does the largest moon of the planet with the shortest day in the Solar System take to orbit once? Round to the nearest whole number.",
-     "answers": ["7", "7 days", "seven"]},
-    {"question": "Take the number of years the Hundred Years' War is conventionally said to have lasted. What is the chemical symbol of the element with that atomic number?",
-     "answers": ["Lv", "Livermorium"]},
-    {"question": "What is the name of the longest river that flows entirely within the largest country in the world by area?",
-     "answers": ["Lena", "Lena River"]},
-    {"question": "What is the name of the highest mountain in the home country of the leader of the first expedition to reach the South Pole?",
-     "answers": ["Galdhøpiggen", "Galdhopiggen", "Mount Galdhøpiggen"]},
-    {"question": "In which Italian town was the composer of the opera containing the aria \"Nessun dorma\" born?",
-     "answers": ["Lucca"]},
-    {"question": "What is the height, in metres, of the highest mountain in the only country whose national flag is not rectangular or square? Give the most recent official survey figure, rounded to the nearest metre.",
-     "answers": ["8849", "8848", "8848.86", "8849 m", "8848 m"]},
-    {"question": "What is the atomic number of the element named after the birth country of the first person to win Nobel Prizes in two different scientific fields?",
-     "answers": ["84"]},
-    {"question": "How many Earth days does it take the first planet other than Earth to be orbited by a human-made spacecraft to circle the Sun once? Round to the nearest whole number.",
-     "answers": ["687", "687 days"]},
-]
+# "keywords" are the words that carry the puzzle; they are the only words players are barred
+# from searching (when the host leaves that rule on). Add variants a player might type to "answers".
+DIFFICULTIES = ("easy", "difficult")
+
+QUESTIONS = {
+    # One fact, one lookup: fine for a relaxed game.
+    "easy": [
+        {"question": "What is the capital city of the Pacific island nation of Palau?",
+         "keywords": ["capital", "pacific", "island", "palau"], "answers": ["Ngerulmud"]},
+        {"question": "Which NASA spacecraft became the first to orbit another planet, in 1971?",
+         "keywords": ["nasa", "spacecraft", "first", "orbit", "planet", "1971"], "answers": ["Mariner 9"]},
+        {"question": "Which single letter of the alphabet does not appear in the name of any US state?",
+         "keywords": ["letter", "alphabet", "state"], "answers": ["Q", "letter Q"]},
+        {"question": "What is the smallest country by area on mainland Africa?",
+         "keywords": ["smallest", "country", "area", "mainland", "africa"], "answers": ["The Gambia", "Gambia"]},
+        {"question": "What is the national animal of Scotland?",
+         "keywords": ["national", "animal", "scotland"], "answers": ["Unicorn"]},
+        {"question": "In what year did the Tunguska event flatten forest in Siberia?",
+         "keywords": ["tunguska", "flatten", "forest", "siberia"], "answers": ["1908"]},
+        {"question": "What is the Japanese art of repairing broken pottery with gold lacquer called?",
+         "keywords": ["japanese", "art", "repairing", "broken", "pottery", "gold", "lacquer"], "answers": ["Kintsugi", "Kintsukuroi"]},
+        {"question": "What is the longest river in Europe?",
+         "keywords": ["longest", "river", "europe"], "answers": ["Volga"]},
+    ],
+    # Every difficult question chains 2-4 facts, so no single search returns the answer; each
+    # answer was checked against Wikipedia.
+    "difficult": [
+        {"question": "What is the elevation, in metres, of the highest point in the country whose capital is the westernmost capital city of mainland Europe?",
+         "keywords": ["elevation", "highest", "capital", "westernmost", "mainland", "europe"],
+         "answers": ["2351", "2351 m", "2351 metres"]},
+        {"question": "How many Earth days does the largest moon of the planet with the shortest day in the Solar System take to orbit once? Round to the nearest whole number.",
+         "keywords": ["earth", "day", "largest", "moon", "planet", "shortest", "solar", "system", "orbit"],
+         "answers": ["7", "7 days", "seven"]},
+        {"question": "Take the number of years the Hundred Years' War is conventionally said to have lasted. What is the chemical symbol of the element with that atomic number?",
+         "keywords": ["hundred", "years", "war", "lasted", "chemical", "symbol", "element", "atomic"],
+         "answers": ["Lv", "Livermorium"]},
+        {"question": "What is the name of the longest river that flows entirely within the largest country in the world by area?",
+         "keywords": ["longest", "river", "largest", "country", "world", "area"],
+         "answers": ["Lena", "Lena River"]},
+        {"question": "What is the name of the highest mountain in the home country of the leader of the first expedition to reach the South Pole?",
+         "keywords": ["highest", "mountain", "leader", "first", "expedition", "south", "pole"],
+         "answers": ["Galdhøpiggen", "Galdhopiggen", "Mount Galdhøpiggen"]},
+        {"question": "In which Italian town was the composer of the opera containing the aria \"Nessun dorma\" born?",
+         "keywords": ["italian", "town", "composer", "opera", "aria", "nessun", "dorma", "born"],
+         "answers": ["Lucca"]},
+        {"question": "What is the height, in metres, of the highest mountain in the only country whose national flag is not rectangular or square? Give the most recent official survey figure, rounded to the nearest metre.",
+         "keywords": ["height", "highest", "mountain", "national", "flag", "rectangular", "square", "survey"],
+         "answers": ["8849", "8848", "8848.86", "8849 m", "8848 m"]},
+        {"question": "What is the atomic number of the element named after the birth country of the first person to win Nobel Prizes in two different scientific fields?",
+         "keywords": ["atomic", "element", "birth", "country", "nobel", "prizes", "scientific", "fields"],
+         "answers": ["84"]},
+        {"question": "How many Earth days does it take the first planet other than Earth to be orbited by a human-made spacecraft to circle the Sun once? Round to the nearest whole number.",
+         "keywords": ["earth", "days", "first", "planet", "orbited", "human", "spacecraft", "sun"],
+         "answers": ["687", "687 days"]},
+    ],
+}
+ALL_QUESTIONS = [q for pool in QUESTIONS.values() for q in pool]
+DEFAULT_SETTINGS = {"difficulty": "difficult", "block_words": True}
 
 
 _SPECIAL = str.maketrans({"ø": "o", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l"})
@@ -52,7 +88,7 @@ def normalize(text):
     return re.sub(r"^(the|a|an) ", "", text)
 
 
-# Players may not search with any word from the question (function words are exempt).
+# Players may not search with the question's key words. Function words are never keywords.
 STOPWORDS = frozenset("""a an the of in on at to for and or is are was were be been by with from as that this these those
 it its what which who whom whose how do does did has have had not no than then there their his her they them he she you
 your i we our so if but into out up over under about after before between per each every can will would should could
@@ -74,8 +110,9 @@ def stem(word):
     return word
 
 
-def banned_stems(question):
-    return {stem(w) for w in tokens(question) if len(w) > 1 and w not in STOPWORDS}
+def banned_stems(keywords):
+    """Stems of the question's key words only (not every word in it)."""
+    return {stem(w) for kw in keywords for w in tokens(kw) if len(w) > 1 and w not in STOPWORDS}
 
 
 def score(seconds, clicks, wrong):
@@ -91,9 +128,12 @@ class QuizEngine(Engine):
         self.finished = False
 
     # -- lifecycle ---------------------------------------------------------
-    def start(self, players):
+    def start(self, players, settings=None):
+        settings = {**DEFAULT_SETTINGS, **(settings or {})}
+        self.block_words = bool(settings["block_words"])
+        pool = QUESTIONS[settings["difficulty"]]
         self.pids = [p["id"] for p in players]
-        self.rounds = random.sample(QUESTIONS, min(ROUNDS, len(QUESTIONS)))
+        self.rounds = random.sample(pool, min(ROUNDS, len(pool)))
         self.totals = {pid: 0 for pid in self.pids}
         self.history = []
         self.index = -1
@@ -105,7 +145,7 @@ class QuizEngine(Engine):
         self.round_started = now
         self.deadline = None
         self.next_at = None
-        self.banned = banned_stems(self.rounds[self.index]["question"])
+        self.banned = banned_stems(self.rounds[self.index]["keywords"]) if self.block_words else set()
         self.p = {pid: {"status": "searching", "time": None, "points": 0, "clicks": 0, "searches": 0, "wrong": 0}
                   for pid in self.pids}
 

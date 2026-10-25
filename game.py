@@ -39,7 +39,7 @@ def clean_avatar(value):
 class Engine:
     """Override these to implement the real game. Called with the Game lock held."""
 
-    def start(self, players):
+    def start(self, players, settings=None):
         self.players = [p["id"] for p in players]
         self.question = PLACEHOLDER_QUESTION
         self.log = []
@@ -73,6 +73,7 @@ class Game:
         self.started_at = None
         self.events = []  # tracking log: searches and result clicks, t = seconds since start
         self.stats = {}
+        self.settings = {"difficulty": "difficult", "block_words": True}  # host edits these in the lobby
         self.engine = engine_cls()
         self.version = 0  # bumps on every change, so clients can poll cheaply
         self.touched = time.time()
@@ -116,7 +117,19 @@ class Game:
             raise GameError(f"Need at least {MIN_PLAYERS} players to start" if self.status == "waiting" else "Game already started", 409)
         self.status = "playing"
         self.started_at = time.time()
-        self.engine.start(self.players)
+        self.engine.start(self.players, dict(self.settings))
+        self._bump()
+
+    def set_settings(self, token, data):
+        player = self.player_for(token)
+        if player is not self.players[0]:
+            raise GameError("Only the host can change the settings", 403)
+        if self.status not in ("waiting", "ready"):
+            raise GameError("Settings are locked once the game starts", 409)
+        if data.get("difficulty") in ("easy", "difficult"):
+            self.settings["difficulty"] = data["difficulty"]
+        if isinstance(data.get("block_words"), bool):
+            self.settings["block_words"] = data["block_words"]
         self._bump()
 
     def player_for(self, token):
@@ -180,6 +193,7 @@ class Game:
                          "avatar": f"/api/games/{self.id}/avatar/{p['id']}?v={p['avatar_v']}" if p["avatar"] else None}
                         for p in self.players],
             "state": self.engine.state() if self.status in ("playing", "finished") else None,
+            "settings": self.settings,
             "started_at": self.started_at,
             "now": time.time(),
             "stats": self.stats,

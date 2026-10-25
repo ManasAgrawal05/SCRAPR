@@ -1,47 +1,27 @@
 <div class="tb-rules" hidden>
   <div class="apps-grid">
-    <button type="button" class="app-tile" data-pane="players"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#4285f4" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><span>Players</span></button>
-    <button type="button" class="app-tile" data-pane="rounds"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#ea4335" d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg><span>Rounds</span></button>
-    <button type="button" class="app-tile" data-pane="search"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#fbbc05" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"/></svg><span>Search rule</span></button>
-    <button type="button" class="app-tile" data-pane="answers"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#34a853" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg><span>Answers</span></button>
-    <button type="button" class="app-tile" data-pane="scoring"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#4285f4" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg><span>Scoring</span></button>
-    <button type="button" class="app-tile" data-pane="timers"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#ea4335" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg><span>Timers</span></button>
+    <button type="button" class="app-tile" data-pane="rules"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#4285f4" d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg><span>Rules</span></button>
   </div>
   <div class="app-detail" hidden>
-    <button type="button" class="app-back" aria-label="Back">&larr; How to play</button>
-    <section data-pane="players">
-      <h3>Players</h3>
+    <button type="button" class="app-back" aria-label="Back">&larr; Back</button>
+    <section data-pane="rules">
+      <h3>Rules</h3>
+      <h4>The game</h4>
       <ul>
-        <li>Host a game and share the code with friends.</li>
-        <li>{{ rules.min_players }}&ndash;{{ rules.max_players }} players can join. The host starts the game once everyone is in.</li>
-        <li>Set your username and picture from the profile button. During a game, the grid shows the leaderboard.</li>
+        <li>Host a game and share the code. {{ rules.min_players }}&ndash;{{ rules.max_players }} players can join, and the host starts it.</li>
+        <li>A game is {{ rules.rounds }} rounds. Each round asks one question. The highest total after the last round wins, and equal totals are a draw.</li>
+        <li>The host picks the settings in the lobby: <b>easy</b> questions (one lookup) or <b>difficult</b> ones (several lookups chained together, so no single search gives the answer), and whether the search rule below is on.</li>
       </ul>
-    </section>
-    <section data-pane="rounds">
-      <h3>Rounds</h3>
+      <h4>Answering</h4>
       <ul>
-        <li>A game is {{ rules.rounds }} rounds.</li>
-        <li>Each round asks one obscure question that takes several lookups, so no single search gives the answer.</li>
-        <li>The highest total after the last round wins. Equal totals are a draw.</li>
-      </ul>
-    </section>
-    <section data-pane="search">
-      <h3>Search rule</h3>
-      <ul>
-        <li>You can&rsquo;t search with any word from the question.</li>
-        <li>Small words like &ldquo;the&rdquo; and &ldquo;of&rdquo; are fine, and plurals count as the same word.</li>
-      </ul>
-    </section>
-    <section data-pane="answers">
-      <h3>Answers</h3>
-      <ul>
-        <li>Find the answer with SCRAPR&rsquo;s search and type it into the answer box.</li>
-        <li>Capital letters, accents and &ldquo;the&rdquo; don&rsquo;t matter. Wrong guesses are unlimited but cost points.</li>
+        <li>Find the answer with SCRAPR&rsquo;s search and type it into the answer box. Capital letters, accents and &ldquo;the&rdquo; don&rsquo;t matter.</li>
         <li>Everything stays inside SCRAPR: result links open in the in-app viewer.</li>
       </ul>
-    </section>
-    <section data-pane="scoring">
-      <h3>Scoring</h3>
+      <h4>Search rule (when switched on)</h4>
+      <ul>
+        <li>You can&rsquo;t search with the question&rsquo;s key words. Other words, including small ones like &ldquo;the&rdquo; and &ldquo;of&rdquo;, are fine, and plurals count as the same word.</li>
+      </ul>
+      <h4>Scoring</h4>
       <ul>
         <li>A correct answer starts at <b>{{ rules.base }}</b> points.</li>
         <li>&minus;{{ rules.per_sec }} per second (up to &minus;{{ rules.max_time }}).</li>
@@ -49,13 +29,10 @@
         <li>&minus;{{ rules.per_wrong }} per wrong guess (up to &minus;{{ rules.max_wrong }}).</li>
         <li>A correct answer is always worth at least {{ rules.floor }}. No correct answer scores 0.</li>
       </ul>
-    </section>
-    <section data-pane="timers">
-      <h3>Timers</h3>
+      <h4>Timers</h4>
       <ul>
         <li>When one player gets it right, everyone else has {{ rules.grace }} seconds to finish.</li>
-        <li>A round also ends after {{ rules.limit_min }} minutes if nobody solves it.</li>
-        <li>There are {{ rules.intermission }} seconds between rounds.</li>
+        <li>A round also ends after {{ rules.limit_min }} minutes if nobody solves it. There are {{ rules.intermission }} seconds between rounds.</li>
       </ul>
     </section>
   </div>
