@@ -134,6 +134,17 @@ def shorten_link(link):
     return " › ".join([u.netloc.removeprefix("www."), *parts[:3]])
 
 
+@app.url_defaults
+def version_static(endpoint, values):
+    """Append the file's mtime to static URLs. Cloudflare/browsers cache static files for hours; a new
+    version string makes them fetch the updated file immediately."""
+    if endpoint == "static" and "filename" in values:
+        try:
+            values["v"] = int(os.stat(os.path.join(app.static_folder, values["filename"])).st_mtime)
+        except OSError:
+            pass
+
+
 @app.template_filter("compact")
 def compact(n):
     """94000 -> 94K"""

@@ -46,9 +46,8 @@
   const saveSel = v => { try { v ? sessionStorage.setItem(SEL, JSON.stringify(v)) : sessionStorage.removeItem(SEL); } catch (_) {} };
   function renderSel() {
     const sel = loadSel();
-    $("selSummary").textContent = sel
-      ? "Selected: " + sel.title + " · " + sel.price_text + (sel.rating ? " · ★" + sel.rating : "")
-      : "Nothing selected yet. Click a listing.";
+    $("answerBtn").disabled = !sel;  // nothing to submit until a product box has been clicked
+    $("answerBtn").title = sel ? "" : "Click a product to select it first";
     document.querySelectorAll(".shop-card").forEach(c => {
       const on = !!sel && c.dataset.id === sel.id;
       c.classList.toggle("selected", on);
@@ -66,7 +65,11 @@
     feedback = "";
     render();
   }
-  document.addEventListener("click", e => { const c = e.target.closest && e.target.closest(".shop-card"); if (c) pick(c); });
+  document.addEventListener("click", e => {
+    if (e.target.closest("a")) return;  // the picture and title are links to the listing; anywhere else in the box selects it
+    const c = e.target.closest && e.target.closest(".shop-card");
+    if (c) pick(c);
+  });
   document.addEventListener("keydown", e => {
     if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("shop-card")) { e.preventDefault(); pick(e.target); }
   });
@@ -80,9 +83,7 @@
     $("counts").textContent = mine ? mine.searches + " searches, " + mine.clicks + " clicks" : "";
     const shop = s.kind === "shopping";  // shopping: pick a listing instead of typing an answer
     $("answerInput").hidden = shop;
-    $("selSummary").hidden = !shop;
-    $("answerBtn").textContent = shop ? "Submit selection" : "Submit answer";
-    if (shop) renderSel();
+    if (shop) renderSel(); else { $("answerBtn").disabled = false; $("answerBtn").title = ""; }
     $("answerForm").hidden = !(mine && s.phase === "round" && mine.status === "searching");
     $("answerMsg").textContent = mine && mine.status === "solved" && s.phase === "round"
       ? "Correct! +" + mine.points + " pts" : feedback;

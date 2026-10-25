@@ -52,6 +52,7 @@ def parse(results):
             "reviews": r.get("reviews") if isinstance(r.get("reviews"), int) else None,
             "delivery": r.get("delivery") or "", "thumbnail": r.get("thumbnail") or "",
             "tag": r.get("tag") or "",
+            "old_price_text": r.get("old_price") or "", "link": r.get("product_link") or "",
         }
         # Google's product_link embeds the searcher's own query text, so it is deliberately NOT part of the check.
         item["haystack"] = " ".join([item["title"], item["snippet"], item["source"], item["tag"], str(r.get("badge") or ""), extra]).lower()

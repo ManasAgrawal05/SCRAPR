@@ -2,9 +2,8 @@
   <div class="qtext"><span id="roundlabel">Question</span> <span id="qtext"></span></div>
   <div class="gamestats"><span id="clock"></span> &middot; <span id="counts"></span> <span id="grace"></span></div>
   {% include "_topbar.html" %}
-  <form class="answer-form" id="answerForm" autocomplete="off">
+  <form class="answer-form" id="answerForm" autocomplete="off" hidden>
     <input id="answerInput" placeholder="Type your answer" aria-label="Your answer">
-    <span id="selSummary" hidden></span>
     <button type="submit" class="btn" id="answerBtn">Submit answer</button>
     <span id="answerMsg"></span>
   </form>

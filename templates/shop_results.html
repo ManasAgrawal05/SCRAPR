@@ -19,25 +19,58 @@
   {% elif not items %}
     <p class="noresults">No shopping results for <b>{{ q }}</b>. Try different words.</p>
   {% else %}
-    <div class="stats">Click a listing to select it, then press <b>Submit selection</b> at the top.</div>
-    <div class="shop-grid">
+    <div class="shop-chips" id="shopChips">
+      <span class="chip-label">Sort by</span>
+      <button type="button" class="chip on" data-sort="pos">Relevance</button>
+      <button type="button" class="chip" data-sort="price">Price: low to high</button>
+      <button type="button" class="chip" data-sort="rating">Top rated</button>
+      <span class="chip-sep"></span>
+      <button type="button" class="chip" data-filter="delivery" aria-pressed="false">Free delivery</button>
+      <button type="button" class="chip" data-filter="sale" aria-pressed="false">On sale</button>
+    </div>
+    <div class="shop-grid" id="shopGrid">
       {% for it in items %}
-      <div class="shop-card" data-id="{{ it.id }}" tabindex="0" role="button" aria-pressed="false">
-        <div class="shop-img">{% if it.thumbnail %}<img src="{{ it.thumbnail }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
-        <div class="shop-price">{{ it.price_text }}</div>
-        <div class="shop-title">{{ it.title }}</div>
-        <div class="shop-source">{{ it.source }}</div>
-        <div class="shop-rating">
-          {% if it.rating %}<span class="stars" style="--r: {{ (it.rating / 5 * 100)|round(0) }}%"></span> <b>{{ it.rating }}</b>{% if it.reviews %} <span class="muted">({{ it.reviews|compact }})</span>{% endif %}
-          {% else %}<span class="muted">No rating</span>{% endif %}
+      <div class="shop-card" data-id="{{ it.id }}" data-pos="{{ loop.index }}" data-price="{{ it.price }}" data-rating="{{ it.rating or 0 }}"
+           data-delivery="{{ 1 if 'free' in it.delivery|lower else 0 }}" data-sale="{{ 1 if (it.tag or it.old_price_text) else 0 }}"
+           tabindex="0" role="button" aria-pressed="false">
+        <span class="shop-check" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></span>
+        {% if it.link %}<a class="shop-img" href="{{ it.link }}" rel="noopener">{% else %}<span class="shop-img">{% endif %}
+          {% if it.thumbnail %}<img src="{{ it.thumbnail }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+        {% if it.link %}</a>{% else %}</span>{% endif %}
+        <div class="shop-body">
+          <div class="shop-pricerow">
+            <b class="shop-price">{{ it.price_text }}</b>
+            {% if it.old_price_text %}<s class="shop-old">{{ it.old_price_text }}</s>{% endif %}
+            {% if it.tag %}<span class="shop-tag">{{ it.tag }}</span>{% endif %}
+          </div>
+          {% if it.link %}<a class="shop-title" href="{{ it.link }}" rel="noopener">{{ it.title }}</a>{% else %}<span class="shop-title">{{ it.title }}</span>{% endif %}
+          <div class="shop-source">{{ it.source }}</div>
+          {% if it.rating %}<div class="shop-rating"><b>{{ it.rating }}</b><svg class="star" viewBox="0 0 24 24" width="14" height="14" aria-label="stars"><path fill="#fbbc04" d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>{% if it.reviews %}<span class="muted">({{ it.reviews|compact }})</span>{% endif %}</div>
+          {% else %}<div class="shop-rating muted">No reviews</div>{% endif %}
+          {% if it.snippet %}<div class="shop-snippet">{{ it.snippet }}</div>{% endif %}
+          {% if it.delivery %}<div class="shop-extra">{{ it.delivery }}</div>{% endif %}
         </div>
-        {% if it.snippet %}<div class="shop-snippet">{{ it.snippet }}</div>{% endif %}
-        {% if it.tag %}<div class="shop-tag">{{ it.tag }}</div>{% endif %}
-        {% if it.delivery %}<div class="shop-extra">{{ it.delivery }}</div>{% endif %}
-        <div class="shop-sel">&#10003; Selected</div>
       </div>
       {% endfor %}
     </div>
+    <script>
+    (() => {  // sort / filter chips work like Google Shopping's: they just reorder or hide the cards on this page
+      const grid = document.getElementById("shopGrid"), chips = [...document.querySelectorAll("#shopChips .chip")];
+      const cards = () => [...grid.children];
+      let sort = "pos";
+      const apply = () => {
+        const key = { pos: c => +c.dataset.pos, price: c => +c.dataset.price, rating: c => -c.dataset.rating }[sort];
+        cards().sort((a, b) => key(a) - key(b) || +a.dataset.pos - +b.dataset.pos).forEach(c => grid.append(c));
+        const need = chips.filter(c => c.dataset.filter && c.getAttribute("aria-pressed") === "true").map(c => c.dataset.filter);
+        cards().forEach(c => { c.hidden = need.some(f => c.dataset[f] !== "1"); });
+      };
+      chips.forEach(ch => ch.addEventListener("click", () => {
+        if (ch.dataset.sort) { sort = ch.dataset.sort; chips.filter(c => c.dataset.sort).forEach(c => c.classList.toggle("on", c === ch)); }
+        else { const on = ch.getAttribute("aria-pressed") !== "true"; ch.setAttribute("aria-pressed", on); ch.classList.toggle("on", on); }
+        apply();
+      }));
+    })();
+    </script>
   {% endif %}
 </main>
 <footer class="result-footer"><div>Listings from Google Shopping via SerpAPI</div></footer>
