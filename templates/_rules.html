@@ -1,16 +1,9 @@
-<div class="tb-rules" hidden>
-  <div class="apps-grid">
-    <button type="button" class="app-tile" data-pane="rules"><svg viewBox="0 0 24 24" width="36" height="36"><path fill="#4285f4" d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg><span>Rules</span></button>
-  </div>
-  <div class="app-detail" hidden>
-    <button type="button" class="app-back" aria-label="Back">&larr; Back</button>
-    <section data-pane="rules">
-      <h3>Rules</h3>
+<div class="menu-body rules-body">
       <h4>The game</h4>
       <ul>
         <li>Host a game and share the code. {{ rules.min_players }}&ndash;{{ rules.max_players }} players can join, and the host starts it.</li>
         <li>A game is {{ rules.rounds }} rounds. Each round asks one question. The highest total after the last round wins, and equal totals are a draw.</li>
-        <li>The host picks the settings in the lobby: <b>easy</b> questions (one lookup) or <b>difficult</b> ones (several lookups chained together, so no single search gives the answer), and whether the search rule below is on.</li>
+        <li>The host picks the settings from the grid menu in the lobby: <b>easy</b> questions (one lookup) or <b>difficult</b> ones (several lookups chained together, so no single search gives the answer), and whether the search rule below is on.</li>
       </ul>
       <h4>Answering</h4>
       <ul>
@@ -34,6 +27,4 @@
         <li>When one player gets it right, everyone else has {{ rules.grace }} seconds to finish.</li>
         <li>A round also ends after {{ rules.limit_min }} minutes if nobody solves it. There are {{ rules.intermission }} seconds between rounds.</li>
       </ul>
-    </section>
-  </div>
-</div>
+    </div>

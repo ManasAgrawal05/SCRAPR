@@ -1,9 +1,10 @@
-// Profile (username + optional image, kept in this tab's sessionStorage) and the in-game leaderboard panel.
+// Top-right widgets: profile (username + optional image, kept in this tab's sessionStorage) and the grid
+// menu. The grid opens to tiles (Leaderboard / Rules / Settings in a game, just Rules on the home screen).
 (() => {
   const roots = [...document.querySelectorAll(".tb-widgets")];
   if (!roots.length) return;
   const game = roots[0].dataset.game;  // "" on the home screen
-  const PROFILE = "scrapr:profile", LB_CLOSED = "scrapr:lb-closed";
+  const PROFILE = "scrapr:profile", MENU_CLOSED = "scrapr:menu-closed";
   const store = {
     get: k => { try { return sessionStorage.getItem(k); } catch (_) { return null; } },
     set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (_) {} },
@@ -12,7 +13,11 @@
   try { profile = { ...profile, ...JSON.parse(store.get(PROFILE) || "{}") }; } catch (_) {}
   let me = null;
   try { me = JSON.parse(store.get("scrapr:" + game)); } catch (_) {}
-  let lbOpen = !!game && store.get(LB_CLOSED) !== "1";  // open by default in a game
+  const isHost = !!me && me.id === "p1";
+
+  let menuOpen = !!game && store.get(MENU_CLOSED) !== "1";  // open by default in a game, closed on the home screen
+  let view = document.getElementById("lobby") ? "grid" : "leaderboard";
+  let lastPhase = null;
   let snapshot = null;
 
   const el = (tag, cls, text) => {
@@ -53,43 +58,74 @@
     });
   }
 
-  function renderLeaderboard() {
-    roots.forEach(r => {
-      const panel = r.querySelector(".tb-lb");
-      panel.hidden = !lbOpen;
-      if (!lbOpen) return;
-      const list = r.querySelector(".lb-list");
-      list.innerHTML = "";
-      if (!snapshot) { list.append(el("li", "lb-empty", "Loading…")); return; }
-      const st = snapshot.state, totals = (st && st.totals) || {}, round = st && st.phase === "round" ? st.players : null;
-      // totals only include finished rounds; add what each player has already earned this round
-      const rows = snapshot.players.map((p, i) => ({ p, i, pts: (totals[p.id] || 0) + (round && round[p.id] ? round[p.id].points : 0) }))
-        .sort((a, b) => b.pts - a.pts || a.i - b.i);
-      rows.forEach((row, rank) => {
-        const li = el("li", me && me.id === row.p.id ? "me" : "");
-        li.append(el("span", "lb-rank", String(rank + 1)));
-        const av = el("span", "av");
-        paintAvatar(av, row.p.avatar, row.p.name);
-        li.append(av);
-        li.append(el("span", "lb-name", row.p.name + (me && me.id === row.p.id ? " (you)" : "")));
-        if (round && round[row.p.id]) {
-          const s = round[row.p.id].status;
-          li.append(el("span", "lb-chip " + s, s === "solved" ? "solved" : s === "timeout" ? "out" : "searching"));
-        }
-        li.append(el("span", "lb-pts", String(row.pts)));
-        list.append(li);
-      });
+  function renderLeaderboard(root) {
+    const list = root.querySelector(".lb-list");
+    if (!list) return;
+    list.innerHTML = "";
+    if (!snapshot) { list.append(el("li", "lb-empty", "Loading…")); return; }
+    const st = snapshot.state, totals = (st && st.totals) || {}, round = st && st.phase === "round" ? st.players : null;
+    // totals only include finished rounds; add what each player has already earned this round
+    const rows = snapshot.players.map((p, i) => ({ p, i, pts: (totals[p.id] || 0) + (round && round[p.id] ? round[p.id].points : 0) }))
+      .sort((a, b) => b.pts - a.pts || a.i - b.i);
+    rows.forEach((row, rank) => {
+      const li = el("li", me && me.id === row.p.id ? "me" : "");
+      li.append(el("span", "lb-rank", String(rank + 1)));
+      const av = el("span", "av");
+      paintAvatar(av, row.p.avatar, row.p.name);
+      li.append(av);
+      li.append(el("span", "lb-name", row.p.name + (me && me.id === row.p.id ? " (you)" : "")));
+      if (round && round[row.p.id]) {
+        const s = round[row.p.id].status;
+        li.append(el("span", "lb-chip " + s, s === "solved" ? "solved" : s === "timeout" ? "out" : "searching"));
+      }
+      li.append(el("span", "lb-pts", String(row.pts)));
+      list.append(li);
     });
   }
 
-  function setLeaderboard(open) {
-    lbOpen = open;
-    if (game) store.set(LB_CLOSED, open ? "0" : "1");
-    renderLeaderboard();
+  function renderSettings(root) {
+    const box = root.querySelector('[data-view="settings"]');
+    if (!box || !snapshot) return;
+    const st = snapshot.settings, lobby = snapshot.status === "waiting" || snapshot.status === "ready";
+    const editable = isHost && lobby;
+    box.querySelectorAll(".seg button").forEach(b => { b.classList.toggle("on", b.dataset.v === st.difficulty); b.disabled = !editable; });
+    const chk = box.querySelector(".set-block");
+    chk.checked = st.block_words;
+    chk.disabled = !editable;
+    box.querySelector(".set-note").textContent = editable ? ""
+      : lobby ? "Only the host can change these." : "Settings are locked once the game starts.";
   }
 
-  // ---- profile popover (one open at a time) ----------------------------
+  function render() {
+    roots.forEach(r => {
+      const menu = r.querySelector(".tb-menu");
+      menu.hidden = !menuOpen;
+      menu.querySelectorAll(".menu-view").forEach(v => { v.hidden = v.dataset.view !== view; });
+      if (!menuOpen) return;
+      if (view === "leaderboard") renderLeaderboard(r);
+      if (view === "settings") renderSettings(r);
+    });
+  }
+
+  function setOpen(open) {
+    menuOpen = open;
+    if (game) store.set(MENU_CLOSED, open ? "0" : "1");
+    render();
+  }
+
+  function take(g) {
+    snapshot = g;
+    const phase = g.status === "waiting" || g.status === "ready" ? "lobby" : "game";
+    if (phase !== lastPhase) {  // lobby -> tiles, once the game starts -> leaderboard (not on every player joining)
+      lastPhase = phase;
+      view = phase === "lobby" ? "grid" : "leaderboard";
+    }
+    render();
+  }
+
+  // ---- per-root wiring ----------------------------------------------------
   let draftAvatar = "";
+  const closePopovers = () => roots.forEach(r => { r.querySelector(".tb-pop").hidden = true; });
   roots.forEach(r => {
     const pop = r.querySelector(".tb-pop"), name = r.querySelector(".pop-name"), err = r.querySelector(".pop-error");
     const preview = r.querySelector(".pop-preview"), remove = r.querySelector(".pop-remove");
@@ -97,8 +133,8 @@
       paintAvatar(preview, draftAvatar, name.value);
       remove.hidden = !draftAvatar;
     };
-    const close = () => { pop.hidden = true; };
-    const open = () => {
+    const closePop = () => { pop.hidden = true; };
+    const openPop = () => {
       draftAvatar = profile.avatar;
       name.value = profile.name;
       err.textContent = "";
@@ -106,7 +142,11 @@
       pop.hidden = false;
       name.focus();
     };
-    r.querySelector(".tb-profile").addEventListener("click", e => { e.stopPropagation(); pop.hidden ? open() : close(); });
+    r.querySelector(".tb-profile").addEventListener("click", e => {
+      e.stopPropagation();
+      if (!game && menuOpen) setOpen(false);  // home: one floating card at a time
+      pop.hidden ? openPop() : closePop();
+    });
     pop.addEventListener("click", e => e.stopPropagation());
     name.addEventListener("input", refreshPreview);
     r.querySelector(".pop-file input").addEventListener("change", async e => {
@@ -117,58 +157,64 @@
       catch (ex) { err.textContent = ex.message; }
     });
     remove.addEventListener("click", () => { draftAvatar = ""; refreshPreview(); });
-    r.querySelector(".pop-cancel").addEventListener("click", close);
+    r.querySelector(".pop-cancel").addEventListener("click", closePop);
     const save = async () => {
       profile = { name: name.value.trim().slice(0, 24), avatar: draftAvatar };
       store.set(PROFILE, JSON.stringify(profile));
       renderProfile();
-      close();
+      closePop();
       if (game && me) {  // let the other players see the change
         try {
           const res = await fetch("/api/games/" + game + "/profile", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
             body: JSON.stringify({ name: profile.name, avatar: profile.avatar }),
           });
-          if (res.ok) { snapshot = await res.json(); renderLeaderboard(); }
+          if (res.ok) take(await res.json());
         } catch (_) {}
       }
     };
     r.querySelector(".pop-save").addEventListener("click", save);
-    name.addEventListener("keydown", e => { if (e.key === "Enter") save(); if (e.key === "Escape") close(); });
+    name.addEventListener("keydown", e => { if (e.key === "Enter") save(); if (e.key === "Escape") closePop(); });
 
-    const apps = r.querySelector(".tb-apps");
-    if (game) {
-      apps.addEventListener("click", e => { e.stopPropagation(); setLeaderboard(!lbOpen); });
-      r.querySelector(".tb-lb .lb-close").addEventListener("click", () => setLeaderboard(false));
-    }
-    const rules = r.querySelector(".tb-rules");  // home screen: the grid shows the rules instead
-    if (rules && !game) {
-      const gridView = rules.querySelector(".apps-grid"), detail = rules.querySelector(".app-detail");
-      const showGrid = () => { gridView.hidden = false; detail.hidden = true; };
-      rules.querySelectorAll(".app-tile").forEach(t => t.addEventListener("click", () => {
-        detail.querySelectorAll("section").forEach(s => { s.hidden = s.dataset.pane !== t.dataset.pane; });
-        gridView.hidden = true;
-        detail.hidden = false;
-      }));
-      rules.querySelector(".app-back").addEventListener("click", showGrid);
-      apps.addEventListener("click", e => { e.stopPropagation(); pop.hidden = true; showGrid(); rules.hidden = !rules.hidden; });
-      rules.addEventListener("click", e => e.stopPropagation());
-      r.querySelector(".tb-profile").addEventListener("click", () => { rules.hidden = true; });
-    }
+    // grid button + menu navigation
+    const menu = r.querySelector(".tb-menu");
+    r.querySelector(".tb-apps").addEventListener("click", e => {
+      e.stopPropagation();
+      closePopovers();
+      if (!menuOpen && !game) view = "grid";  // home always reopens on the tiles
+      setOpen(!menuOpen);
+    });
+    menu.addEventListener("click", e => e.stopPropagation());
+    menu.querySelectorAll(".app-tile").forEach(t => t.addEventListener("click", () => { view = t.dataset.go; render(); }));
+    menu.querySelectorAll(".menu-back").forEach(b => b.addEventListener("click", () => { view = "grid"; render(); }));
+    menu.querySelectorAll(".menu-close").forEach(b => b.addEventListener("click", () => setOpen(false)));
+
+    // host settings
+    const patchSettings = async patch => {
+      if (!isHost) return;
+      try {
+        const res = await fetch("/api/games/" + game + "/settings", {
+          method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
+          body: JSON.stringify(patch),
+        });
+        if (res.ok) take(await res.json());
+      } catch (_) {}
+    };
+    menu.querySelectorAll('[data-view="settings"] .seg button').forEach(b => b.addEventListener("click", () => patchSettings({ difficulty: b.dataset.v })));
+    const chk = menu.querySelector(".set-block");
+    if (chk) chk.addEventListener("change", e => patchSettings({ block_words: e.target.checked }));
   });
-  const closeFloating = () => roots.forEach(r => {
-    r.querySelector(".tb-pop").hidden = true;
-    const rules = r.querySelector(".tb-rules");
-    if (rules) rules.hidden = true;
-  });
-  document.addEventListener("click", closeFloating);
-  document.addEventListener("keydown", e => { if (e.key === "Escape") closeFloating(); });
+
+  // The home screen's card is a transient popup; in a game the menu stays put until closed.
+  const dismiss = () => { closePopovers(); if (!game && menuOpen) setOpen(false); };
+  document.addEventListener("click", dismiss);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") dismiss(); });
 
   renderProfile();
-  renderLeaderboard();
+  render();
   if (game) {
     const poll = () => fetch("/api/games/" + game).then(r => r.ok ? r.json() : null)
-      .then(g => { if (g) { snapshot = g; renderLeaderboard(); } }).catch(() => {});
+      .then(g => { if (g) take(g); }).catch(() => {});
     poll();
     setInterval(poll, 2000);
   }

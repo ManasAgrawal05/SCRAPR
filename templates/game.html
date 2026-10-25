@@ -9,19 +9,6 @@
   <div class="game-code">{{ game_id }}</div>
   <div class="game-status" id="status">Connecting…</div>
   <ul class="game-players" id="players"></ul>
-  <div class="game-settings" id="settings">
-    <div class="set-row">
-      <span>Questions</span>
-      <div class="seg" id="segDiff" role="group" aria-label="Question difficulty">
-        <button type="button" data-v="easy">Easy</button><button type="button" data-v="difficult">Difficult</button>
-      </div>
-    </div>
-    <label class="set-row">
-      <span>Block the question&rsquo;s key words in searches</span>
-      <input type="checkbox" id="chkBlock" class="switch">
-    </label>
-    <div class="set-note" id="setNote"></div>
-  </div>
   <button type="button" class="btn" id="btnStart" hidden>Start Game</button>
 </main>
 </div>
@@ -40,16 +27,6 @@
   try { me = JSON.parse(sessionStorage.getItem("scrapr:" + id)); } catch (_) {}
   const $ = s => document.getElementById(s);
   const isHost = !!me && me.id === "p1";
-  async function saveSettings(patch) {
-    if (!isHost) return;
-    await fetch("/api/games/" + id + "/settings", {
-      method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
-      body: JSON.stringify(patch),
-    });
-    poll();
-  }
-  document.querySelectorAll("#segDiff button").forEach(b => b.addEventListener("click", () => saveSettings({ difficulty: b.dataset.v })));
-  $("chkBlock").addEventListener("change", e => saveSettings({ block_words: e.target.checked }));
   $("btnStart").addEventListener("click", async () => {
     $("btnStart").disabled = true;
     await fetch("/api/games/" + id + "/start", { method: "POST", headers: { "X-Player-Token": me.token } });
@@ -62,18 +39,10 @@
       const g = await r.json();
       $("status").textContent = {
         waiting: "Waiting for another player… share this code (up to 8 can join).",
-        ready: isHost ? g.players.length + " players here. Start when everyone has joined." : g.players.length + " players here. Waiting for the host to start…",
+        ready: isHost ? g.players.length + " players here. Change the game settings from the grid menu (top right), then start when everyone has joined." : g.players.length + " players here. Waiting for the host to start…",
         playing: "Game on!",
         finished: "Game over",
       }[g.status];
-      const st = g.settings, editable = isHost && (g.status === "waiting" || g.status === "ready");
-      document.querySelectorAll("#segDiff button").forEach(b => {
-        b.classList.toggle("on", b.dataset.v === st.difficulty);
-        b.disabled = !editable;
-      });
-      $("chkBlock").checked = st.block_words;
-      $("chkBlock").disabled = !editable;
-      $("setNote").textContent = editable ? "" : g.status === "waiting" || g.status === "ready" ? "Only the host can change these." : "";
       const start = $("btnStart");
       start.hidden = !(isHost && (g.status === "waiting" || g.status === "ready"));
       start.disabled = g.status !== "ready";

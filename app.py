@@ -34,6 +34,22 @@ _words = {}  # (query, start) -> word count of each organic result shown
 games = GameManager(QuizEngine)
 
 
+# Numbers shown in the Rules panel come from the engine's constants, so the text can't drift from the game.
+RULES = dict(
+    rounds=min(quiz.ROUNDS, *(len(v) for v in quiz.QUESTIONS.values())), min_players=MIN_PLAYERS, max_players=MAX_PLAYERS,
+    base=quiz.BASE, per_sec=quiz.TIME_PENALTY_PER_SEC, max_time=quiz.MAX_TIME_PENALTY,
+    per_click=quiz.CLICK_PENALTY, max_click=quiz.MAX_CLICK_PENALTY,
+    per_wrong=quiz.WRONG_PENALTY, max_wrong=quiz.MAX_WRONG_PENALTY,
+    floor=quiz.BASE - quiz.MAX_TIME_PENALTY - quiz.MAX_CLICK_PENALTY - quiz.MAX_WRONG_PENALTY,
+    grace=quiz.GRACE, limit_min=quiz.ROUND_LIMIT // 60, intermission=quiz.INTERMISSION,
+)
+
+
+@app.context_processor
+def inject_rules():
+    return {"rules": RULES}
+
+
 class SearchError(Exception):
     pass
 
@@ -80,16 +96,7 @@ def num(n):
 
 @app.route("/")
 def index():
-    # numbers come from the engine's constants so the rules text can't drift from the game
-    rules = dict(
-        rounds=min(quiz.ROUNDS, *(len(v) for v in quiz.QUESTIONS.values())), min_players=MIN_PLAYERS, max_players=MAX_PLAYERS,
-        base=quiz.BASE, per_sec=quiz.TIME_PENALTY_PER_SEC, max_time=quiz.MAX_TIME_PENALTY,
-        per_click=quiz.CLICK_PENALTY, max_click=quiz.MAX_CLICK_PENALTY,
-        per_wrong=quiz.WRONG_PENALTY, max_wrong=quiz.MAX_WRONG_PENALTY,
-        floor=quiz.BASE - quiz.MAX_TIME_PENALTY - quiz.MAX_CLICK_PENALTY - quiz.MAX_WRONG_PENALTY,
-        grace=quiz.GRACE, limit_min=quiz.ROUND_LIMIT // 60, intermission=quiz.INTERMISSION,
-    )
-    return render_template("index.html", rules=rules)
+    return render_template("index.html")
 
 
 @app.route("/game/<game_id>")
