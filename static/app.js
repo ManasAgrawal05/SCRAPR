@@ -47,19 +47,34 @@
   };
   const highlight = () => [...list.children].forEach((li, i) => li.classList.toggle("sel", i === idx));
 
-  // In a game, words from the question can't be searched (play.js knows the list).
+  // In a game the server limits how many of the question's key words a search may use; ask it while typing.
+  const gameField = form.querySelector("input[name=game]");
   const note = form.parentElement.querySelector(".banned-note");
-  const offending = () => (window.scraprCheck ? window.scraprCheck(input.value) : []);
-  const warn = () => {
-    if (!note) return;
-    const bad = offending();
-    note.hidden = !bad.length;
-    note.textContent = bad.length ? "Can't use words from the question: " + bad.join(", ") : "";
+  let warnSeq = 0, warnTimer;
+  const check = async text => {
+    if (!gameField || !text.trim()) return { words: [], message: "" };
+    try {
+      const r = await fetch("/api/games/" + encodeURIComponent(gameField.value) + "/check?q=" + encodeURIComponent(text));
+      return await r.json();
+    } catch (_) { return { words: [], message: "" }; }
   };
-  form.addEventListener("submit", e => { if (offending().length) { e.preventDefault(); warn(); } });
+  const warn = async () => {  // true if the search is NOT allowed
+    if (!note) return false;
+    const mine = ++warnSeq, r = await check(input.value);
+    if (mine !== warnSeq) return false;
+    note.hidden = !r.words.length;
+    note.textContent = r.message;
+    return r.words.length > 0;
+  };
+  form.addEventListener("submit", async e => {
+    if (!gameField) return;
+    e.preventDefault();
+    if (!(await warn())) form.submit();  // submit() doesn't re-fire this handler
+  });
 
   input.addEventListener("input", () => {
-    warn();
+    clearTimeout(warnTimer);
+    warnTimer = setTimeout(warn, 150);
     clearTimeout(timer);
     const q = input.value.trim();
     if (!q) { items = []; return hide(); }

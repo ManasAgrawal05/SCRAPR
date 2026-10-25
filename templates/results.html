@@ -19,8 +19,8 @@
 <div class="content">
   <main class="main-col">
     {% if blocked %}
-      <div class="notice"><b>That search uses words from the question.</b><br>
-        Not allowed: <b>{{ blocked|join(', ') }}</b>. Try describing it a different way.</div>
+      <div class="notice"><b>That search uses too much of the question.</b><br>
+        {{ block_msg }} Try describing it a different way.</div>
     {% elif error %}
       <div class="notice"><b>Search failed.</b><br>{{ error }}</div>
     {% else %}

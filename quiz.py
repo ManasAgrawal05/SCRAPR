@@ -110,9 +110,39 @@ def stem(word):
     return word
 
 
-def banned_stems(keywords):
-    """Stems of the question's key words only (not every word in it)."""
-    return {stem(w) for kw in keywords for w in tokens(kw) if len(w) > 1 and w not in STOPWORDS}
+# Searches may use at most MAX_KEYWORDS of a question's key words, and never two of them side by side in the
+# question's own order. A keyword and its variants ("scotland" / "scottish") count as ONE keyword.
+MAX_KEYWORDS = 2
+VARIANTS = {
+    "scotland": ["scottish", "scots", "scot"], "palau": ["palauan"], "orbit": ["orbited", "orbiting", "orbital"],
+    "flatten": ["flattened", "flattening"], "siberia": ["siberian"], "japanese": ["japan"],
+    "repairing": ["repair", "repaired"], "africa": ["african"], "europe": ["european"], "italian": ["italy"],
+    "alphabet": ["alphabetical"], "lasted": ["last", "lasting"], "born": ["birth", "birthplace"],
+    "birth": ["born", "birthplace"], "composer": ["compose", "composed", "composition"],
+    "westernmost": ["western", "west"], "largest": ["large", "biggest"], "smallest": ["small"],
+    "orbited": ["orbit", "orbiting", "orbital"], "solar": ["sun"], "sun": ["solar"], "rectangular": ["rectangle"],
+    "survey": ["surveyed"], "scientific": ["science", "scientist"], "leader": ["led", "leading"],
+    "pole": ["polar"], "spacecraft": ["spaceship"], "elevation": ["altitude"], "highest": ["tallest"],
+    "height": ["tall"], "mountain": ["mount", "mountainous"], "hundred": ["100"], "earth": ["terrestrial"],
+    "prizes": ["prize"], "fields": ["field"], "days": ["day"], "years": ["year"],
+}
+
+
+def keyword_concepts(keywords):
+    """{word stem -> concept id} for the question's key words and their variants."""
+    concept = {}
+    for kw in keywords:
+        cid = stem(kw)
+        for word in [kw, *VARIANTS.get(kw, [])]:
+            for tok in tokens(word):
+                if len(tok) > 1 and tok not in STOPWORDS:
+                    concept[stem(tok)] = cid
+    return concept
+
+
+def content_sequence(text, concept):
+    """Text as a list of concept ids / stems, with function words dropped (so 'animal of scotland' is a chain)."""
+    return [concept.get(stem(w), stem(w)) for w in tokens(text) if len(w) > 1 and w not in STOPWORDS]
 
 
 def score(seconds, clicks, wrong):
@@ -145,7 +175,11 @@ class QuizEngine(Engine):
         self.round_started = now
         self.deadline = None
         self.next_at = None
-        self.banned = banned_stems(self.rounds[self.index]["keywords"]) if self.block_words else set()
+        q = self.rounds[self.index]
+        self.concept = keyword_concepts(q["keywords"]) if self.block_words else {}
+        cids = set(self.concept.values())
+        seq = content_sequence(q["question"], self.concept)
+        self.chains = {(a, b) for a, b in zip(seq, seq[1:]) if a in cids and b in cids and a != b}
         self.p = {pid: {"status": "searching", "time": None, "points": 0, "clicks": 0, "searches": 0, "wrong": 0}
                   for pid in self.pids}
 
@@ -204,11 +238,27 @@ class QuizEngine(Engine):
             self.deadline = now + GRACE
         return {"correct": True, "points": me["points"]}
 
+    def blocked_info(self, query):
+        """(offending words, message) if `query` breaks the key-word rule, else ([], "")."""
+        if getattr(self, "phase", None) != "round" or not self.concept:
+            return [], ""
+        used = {}  # concept id -> the word the player typed
+        for w in tokens(query):
+            cid = self.concept.get(stem(w))
+            if cid and cid not in used:
+                used[cid] = w
+        if len(used) > MAX_KEYWORDS:
+            words = list(used.values())
+            return words, f"Too many of the question's key words (the limit is {MAX_KEYWORDS}): {', '.join(words)}."
+        seq = content_sequence(query, self.concept)
+        for a, b in zip(seq, seq[1:]):
+            if (a, b) in self.chains:
+                words = [used[a], used[b]]
+                return words, f"Those key words appear side by side in the question: \u201c{words[0]} {words[1]}\u201d."
+        return [], ""
+
     def blocked_words(self, query):
-        """Words in `query` that the current question forbids (empty = fine to search)."""
-        if getattr(self, "phase", None) != "round":
-            return []
-        return sorted({w for w in tokens(query) if stem(w) in self.banned})
+        return self.blocked_info(query)[0]
 
     # -- public state ------------------------------------------------------
     def state(self):
@@ -223,7 +273,6 @@ class QuizEngine(Engine):
             "players": self.p,
             "totals": self.totals,
             "history": self.history,
-            "banned": sorted(self.banned) if self.phase == "round" else [],
             "winner": None,
         }
         if self.finished:

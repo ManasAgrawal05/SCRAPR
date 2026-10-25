@@ -186,6 +186,18 @@ def join_game(game_id):
         return jsonify(game=game.view(), player=player)
 
 
+@app.get("/api/games/<game_id>/check")
+@limited("check", 900)
+def check_query(game_id):
+    """Would this search break the key-word rule? Lets the search box warn while typing."""
+    game = playing_game(game_id)
+    if not game:
+        return jsonify(words=[], message="")
+    with game.lock:
+        words, message = game.block_info(request.args.get("q", ""))
+    return jsonify(words=words, message=message)
+
+
 @app.get("/api/games/<game_id>")
 def game_state(game_id):
     game = games.get(game_id)
@@ -309,7 +321,7 @@ def search():
         return redirect("/")
     with g.lock:
         view = g.view()
-        blocked = g.blocked_words(q)
+        blocked, block_msg = g.block_info(q)
     if view["status"] != "playing":  # search only exists inside a running game
         return redirect("/game/" + g.id)
     question = view["state"]["question"]
@@ -348,6 +360,7 @@ def search():
         paa=data.get("related_questions", []),
         related=related,
         blocked=blocked,
+        block_msg=block_msg,
         has_next="next" in data.get("serpapi_pagination", {}),
         error=error,
     )
