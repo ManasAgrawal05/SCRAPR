@@ -1,0 +1,9 @@
+name: scrapr
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - flask>=3.0
+      - requests>=2.31

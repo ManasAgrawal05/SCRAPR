@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Lobby {{ game_id }} - SCRAPR{% endblock %}
+{% block body %}
+<main class="game-main" data-game="{{ game_id }}" id="lobby">
+  <a href="/"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="50"></a>
+  <div class="game-code">{{ game_id }}</div>
+  <div class="game-status" id="status">Connecting…</div>
+  <ul class="game-players" id="players"></ul>
+  <button type="button" class="btn" id="btnStart" hidden>Start Game</button>
+</main>
+
+<div id="searchview" hidden>
+  {% set q = '' %}{% set game = game_id %}{% set page = '' %}
+  {% include "_hud.html" %}
+  <main class="home-main">
+    <img class="home-logo" src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" width="400" height="110">
+    <div class="home-search">{% include "_searchbox.html" %}</div>
+  </main>
+</div>
+<script>
+(() => {
+  const id = document.querySelector("[data-game]").dataset.game;
+  let me = null;
+  try { me = JSON.parse(sessionStorage.getItem("scrapr:" + id)); } catch (_) {}
+  const $ = s => document.getElementById(s);
+  const isHost = !!me && me.id === "p1";
+  $("btnStart").addEventListener("click", async () => {
+    $("btnStart").disabled = true;
+    await fetch("/api/games/" + id + "/start", { method: "POST", headers: { "X-Player-Token": me.token } });
+    poll();
+  });
+  async function poll() {
+    try {
+      const r = await fetch("/api/games/" + id);
+      if (!r.ok) return location.href = "/";
+      const g = await r.json();
+      $("status").textContent = {
+        waiting: "Waiting for another player… share this code (up to 8 can join).",
+        ready: isHost ? g.players.length + " players here. Start when everyone has joined." : g.players.length + " players here. Waiting for the host to start…",
+        playing: "Game on!",
+        finished: "Game over",
+      }[g.status];
+      const start = $("btnStart");
+      start.hidden = !(isHost && (g.status === "waiting" || g.status === "ready"));
+      start.disabled = g.status !== "ready";
+      const playing = g.status === "playing" || g.status === "finished";
+      $("lobby").hidden = playing;
+      if (playing && $("searchview").hidden) {
+        $("searchview").hidden = false;
+        document.querySelector("#searchview input[name=q]").focus();
+      }
+      $("players").innerHTML = "";
+      g.players.forEach(p => {
+        const li = document.createElement("li");
+        li.textContent = p.name + (me && me.id === p.id ? " (you)" : "");
+        if (me && me.id === p.id) li.className = "me";
+        $("players").appendChild(li);
+      });
+    } catch (_) {}
+  }
+  poll(); setInterval(poll, 1500);
+})();
+</script>
+{% endblock %}

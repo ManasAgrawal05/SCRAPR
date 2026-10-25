@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ q }} - Google Search{% endblock %}
+{% block bodyclass %}results{% endblock %}
+{% block body %}
+<div class="sticky-top">
+{% if question %}{% include "_hud.html" %}{% endif %}
+<header class="result-header">
+  <a href="{{ '/game/' ~ game if game else '/' }}" class="mini-logo"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="30"></a>
+  {% include "_searchbox.html" %}
+  <div class="tabs-row">
+    <nav class="tabs"><a class="active" href="/search?q={{ q|urlencode }}{{ gq }}">All</a></nav>
+  </div>
+</header>
+</div>
+
+
+
+<div class="content">
+  <main class="main-col">
+    {% if error %}
+      <div class="notice"><b>Search failed.</b><br>{{ error }}</div>
+    {% else %}
+      {% if total %}<div class="stats">About {{ total|num }} results{% if took %} ({{ took }} seconds){% endif %}</div>{% endif %}
+
+      {% if answer and page == 1 %}
+      <section class="answer">
+        {% if answer.title %}<div class="answer-title">{{ answer.title }}</div>{% endif %}
+        {% set big = answer.answer or answer.result or answer.snippet or (answer.contents.parts|map(attribute='text')|join(' ') if answer.contents and answer.contents.parts else None) %}
+        {% if big %}<div class="answer-big">{{ big }}</div>{% endif %}
+        {% if answer.link %}
+        <div class="answer-src"><a href="{{ answer.link }}">{{ answer.displayed_link or answer.link }}</a></div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% for r in results %}
+      <article class="result">
+        <div class="r-site">
+          {% if r.favicon %}<img class="favicon" src="{{ r.favicon }}" alt="" width="28" height="28">{% else %}<span class="favicon blank"></span>{% endif %}
+          <div class="r-site-text">
+            <span class="r-name">{{ r.source or r.displayed_link }}</span>
+            <cite>{{ r.crumb }}</cite>
+          </div>
+        </div>
+        <h3><a href="{{ r.link }}">{{ r.title }}</a></h3>
+        <div class="snippet">
+          {% if r.date %}<span class="date">{{ r.date }} — </span>{% endif %}{{ r.snippet }}
+        </div>
+      </article>
+      {% else %}
+        <p class="noresults">Your search - <b>{{ q }}</b> - did not match any documents.</p>
+      {% endfor %}
+
+      {% if paa and page == 1 %}
+      <section class="paa">
+        <h2>People also ask</h2>
+        {% for item in paa %}
+        <details><summary>{{ item.question }}</summary>
+          <div class="paa-body">{{ item.snippet or '' }}
+            {% if item.link %}<div><a href="{{ item.link }}">{{ item.title or item.link }}</a></div>{% endif %}
+          </div>
+        </details>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if related %}
+      <section class="related">
+        <h2>Related searches</h2>
+        <div class="related-grid">
+          {% for s in related %}
+          <a href="/search?q={{ s.query|urlencode }}{{ gq }}"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg><span>{{ s.query }}</span></a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if results %}
+      <nav class="pager" aria-label="Pagination">
+        {% if start > 0 %}<a class="pg-side" href="/search?q={{ q|urlencode }}{{ gq }}&start={{ start - 10 }}">&lsaquo;<span>Previous</span></a>{% endif %}
+        <div class="pg-logo"><span style="color:#4285f4">G</span><span style="color:#ea4335">o</span>{% for i in range(1, [page, 5]|max if has_next or page > 1 else 1) %}<span style="color:#fbbc05">o</span>{% endfor %}<span style="color:#34a853">g</span><span style="color:#4285f4">l</span><span style="color:#ea4335">e</span></div>
+        <div class="pg-nums">
+          {% set last = page + 1 if has_next else page %}
+          {% for n in range([1, page - 4]|max, last + 1) %}
+            {% if n == page %}<span class="cur">{{ n }}</span>{% else %}<a href="/search?q={{ q|urlencode }}{{ gq }}&start={{ (n - 1) * 10 }}">{{ n }}</a>{% endif %}
+          {% endfor %}
+        </div>
+        {% if has_next %}<a class="pg-side" href="/search?q={{ q|urlencode }}{{ gq }}&start={{ start + 10 }}"><span>Next</span>&rsaquo;</a>{% endif %}
+      </nav>
+      {% endif %}
+    {% endif %}
+  </main>
+
+  {% if kg and page == 1 and not error %}
+  <aside class="kg">
+    {% if kg.header_images %}<img class="kg-img" src="{{ kg.header_images[0].image }}" alt="">{% elif kg.thumbnail %}<img class="kg-img" src="{{ kg.thumbnail }}" alt="">{% endif %}
+    <h2>{{ kg.title }}</h2>
+    {% if kg.type %}<div class="kg-type">{{ kg.type }}</div>{% endif %}
+    {% if kg.description %}<p>{{ kg.description }}
+      {% if kg.source and kg.source.link %}<a href="{{ kg.source.link }}">{{ kg.source.name or 'Wikipedia' }}</a>{% endif %}</p>{% endif %}
+    {% for key, val in kg.items() if val is string and key not in ('title','type','description','kgmid','knowledge_graph_search_link','serpapi_knowledge_graph_search_link','entity_type','thumbnail','website','born_links') and not key.endswith('_link') and not key.endswith('_links') and val|length < 160 %}
+      <div class="kg-row"><b>{{ key|replace('_',' ')|capitalize }}:</b> {{ val }}</div>
+    {% endfor %}
+  </aside>
+  {% endif %}
+</div>
+<footer class="result-footer"><div>Powered by SerpAPI</div></footer>
+{% endblock %}

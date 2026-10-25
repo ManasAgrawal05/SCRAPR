@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}SCRAPR{% endblock %}
+{% block bodyclass %}viewer{% endblock %}
+{% block body %}
+{% if game %}{% include "_hud.html" %}{% endif %}
+<div class="viewbar">
+  <button type="button" class="btn" id="vBack">&larr; Back</button>
+  <div class="vurl" id="vUrl"></div>
+</div>
+<iframe id="vFrame" class="vframe" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Page"></iframe>
+<script>
+(() => {
+  const frame = document.getElementById("vFrame"), urlBox = document.getElementById("vUrl");
+  const game = {{ (game or "")|tojson }};
+  const go = url => {
+    urlBox.textContent = url;
+    frame.src = "/proxy?url=" + encodeURIComponent(url);
+  };
+  go({{ url|tojson }});
+  window.addEventListener("message", e => {
+    if (e.source === frame.contentWindow && e.data && typeof e.data.scraprNav === "string") go(e.data.scraprNav);
+  });
+  document.getElementById("vBack").addEventListener("click", () => history.back());
+})();
+</script>
+{% endblock %}

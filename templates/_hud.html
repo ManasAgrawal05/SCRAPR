@@ -1,0 +1,11 @@
+<div class="question-bar" id="hud" data-game="{{ game }}" data-q="{{ q or '' }}" data-page="{{ page or '' }}">
+  <div class="qtext"><span id="roundlabel">Question</span> <span id="qtext"></span></div>
+  <div class="gamestats"><span id="clock"></span> &middot; <span id="counts"></span> <span id="grace"></span></div>
+  <form class="answer-form" id="answerForm" autocomplete="off">
+    <input id="answerInput" placeholder="Type your answer" aria-label="Your answer">
+    <button type="submit" class="btn">Submit answer</button>
+    <span id="answerMsg"></span>
+  </form>
+</div>
+<div class="overlay" id="overlay" hidden></div>
+<script src="{{ url_for('static', filename='play.js') }}"></script>
