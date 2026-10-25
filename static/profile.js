@@ -143,9 +143,16 @@
     }
     const rules = r.querySelector(".tb-rules");  // home screen: the grid shows the rules instead
     if (rules && !game) {
-      apps.addEventListener("click", e => { e.stopPropagation(); pop.hidden = true; rules.hidden = !rules.hidden; });
+      const gridView = rules.querySelector(".apps-grid"), detail = rules.querySelector(".app-detail");
+      const showGrid = () => { gridView.hidden = false; detail.hidden = true; };
+      rules.querySelectorAll(".app-tile").forEach(t => t.addEventListener("click", () => {
+        detail.querySelectorAll("section").forEach(s => { s.hidden = s.dataset.pane !== t.dataset.pane; });
+        gridView.hidden = true;
+        detail.hidden = false;
+      }));
+      rules.querySelector(".app-back").addEventListener("click", showGrid);
+      apps.addEventListener("click", e => { e.stopPropagation(); pop.hidden = true; showGrid(); rules.hidden = !rules.hidden; });
       rules.addEventListener("click", e => e.stopPropagation());
-      rules.querySelector(".rules-close").addEventListener("click", () => { rules.hidden = true; });
       r.querySelector(".tb-profile").addEventListener("click", () => { rules.hidden = true; });
     }
   });

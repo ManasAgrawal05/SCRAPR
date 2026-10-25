@@ -216,10 +216,18 @@ body.viewer { display: flex; flex-direction: column; height: 100vh; }
 .banned-note { position: absolute; left: 20px; top: calc(100% + 4px); color: #d93025; font-size: 12px; z-index: 4; }
 .banned-note[hidden] { display: none; }
 
-.tb-rules { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 380px; max-width: calc(100vw - 24px); max-height: calc(100vh - 90px); overflow-y: auto;
-  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25);
-  padding: 16px 20px; font-size: 14px; text-align: left; line-height: 1.5; }
-.tb-rules[hidden] { display: none; }
-.tb-rules h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.tb-rules ul { margin: 0; padding-left: 18px; }
-.tb-rules li { margin: 4px 0; }
+.tb-rules { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; width: 360px; max-width: calc(100vw - 24px); max-height: calc(100vh - 90px); overflow-y: auto;
+  background: var(--bg); color: var(--fg); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.2), 0 0 0 1px rgba(0,0,0,.04);
+  padding: 12px 8px; font-size: 14px; text-align: left; line-height: 1.5; }
+.tb-rules[hidden], .apps-grid[hidden], .app-detail[hidden], .app-detail section[hidden] { display: none; }
+.apps-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.app-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 4px 12px; border: 0; border-radius: 8px; background: none;
+  cursor: pointer; color: var(--fg); font: 13px arial, sans-serif; }
+.app-tile:hover { background: var(--hover); }
+.app-tile span { text-align: center; line-height: 1.2; }
+.app-detail { padding: 0 12px 6px; }
+.app-back { border: 0; background: none; cursor: pointer; color: var(--muted); font: 13px arial, sans-serif; padding: 4px 0 8px; }
+.app-back:hover { color: var(--fg); }
+.app-detail h3 { margin: 0 0 6px; font-size: 18px; font-weight: 400; }
+.app-detail ul { margin: 0; padding-left: 18px; }
+.app-detail li { margin: 6px 0; }
