@@ -208,8 +208,19 @@
     if (!a || !hud.dataset.page || e.ctrlKey || e.metaKey || e.shiftKey) return;
     e.preventDefault();
     const dest = "/view?game=" + encodeURIComponent(id) + "&q=" + encodeURIComponent(q) + "&url=" + encodeURIComponent(a.href);
-    logClick(a.href).finally(() => { location.href = dest; });
-    setTimeout(() => { location.href = dest; }, 1500);  // don't strand the user if the server is slow
+    // Leave once the click is logged, or after 1.5s if the server is slow. It must happen exactly once, and the backup
+    // timer must die with the first attempt: the browser keeps this page alive in its back/forward cache, so a timer
+    // left running would fire when you press Back and throw you straight into the viewer again.
+    let left = false, backup;
+    const leave = () => {
+      if (left) return;
+      left = true;
+      clearTimeout(backup);
+      location.href = dest;
+    };
+    backup = setTimeout(leave, 1500);
+    window.addEventListener("pagehide", () => clearTimeout(backup), { once: true });
+    logClick(a.href).finally(leave);
   });
   // Viewer page: links clicked inside the framed page arrive as messages.
   window.addEventListener("message", e => {
