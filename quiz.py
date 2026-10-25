@@ -3,6 +3,7 @@ timer for the other player. Points reward speed, few clicks and few wrong guesse
 import random
 import re
 import time
+import unicodedata
 
 from game import Engine, GameError
 
@@ -16,20 +17,38 @@ TIME_PENALTY_PER_SEC, MAX_TIME_PENALTY = 2, 500
 CLICK_PENALTY, MAX_CLICK_PENALTY = 10, 200
 WRONG_PENALTY, MAX_WRONG_PENALTY = 50, 200
 
+# Every question chains 2-4 facts, so no single search returns the answer; each answer was
+# checked against Wikipedia. Add variants a player might type (units, spellings) to "answers".
 QUESTIONS = [
-    {"question": "What is the capital city of the Pacific island nation of Palau?", "answers": ["Ngerulmud"]},
-    {"question": "Which NASA spacecraft became the first to orbit another planet, in 1971?", "answers": ["Mariner 9"]},
-    {"question": "Which single letter of the alphabet does not appear in the name of any US state?", "answers": ["Q", "letter Q"]},
-    {"question": "What is the smallest country by area on mainland Africa?", "answers": ["The Gambia", "Gambia"]},
-    {"question": "What is the national animal of Scotland?", "answers": ["Unicorn"]},
-    {"question": "In what year did the Tunguska event flatten forest in Siberia?", "answers": ["1908"]},
-    {"question": "What is the Japanese art of repairing broken pottery with gold lacquer called?", "answers": ["Kintsugi", "Kintsukuroi"]},
-    {"question": "What is the longest river in Europe?", "answers": ["Volga"]},
+    {"question": "What is the elevation, in metres, of the highest point in the country whose capital is the westernmost capital city of mainland Europe?",
+     "answers": ["2351", "2351 m", "2351 metres"]},
+    {"question": "How many Earth days does the largest moon of the planet with the shortest day in the Solar System take to orbit once? Round to the nearest whole number.",
+     "answers": ["7", "7 days", "seven"]},
+    {"question": "Take the number of years the Hundred Years' War is conventionally said to have lasted. What is the chemical symbol of the element with that atomic number?",
+     "answers": ["Lv", "Livermorium"]},
+    {"question": "What is the name of the longest river that flows entirely within the largest country in the world by area?",
+     "answers": ["Lena", "Lena River"]},
+    {"question": "What is the name of the highest mountain in the home country of the leader of the first expedition to reach the South Pole?",
+     "answers": ["Galdhøpiggen", "Galdhopiggen", "Mount Galdhøpiggen"]},
+    {"question": "In which Italian town was the composer of the opera containing the aria \"Nessun dorma\" born?",
+     "answers": ["Lucca"]},
+    {"question": "What is the height, in metres, of the highest mountain in the only country whose national flag is not rectangular or square? Give the most recent official survey figure, rounded to the nearest metre.",
+     "answers": ["8849", "8848", "8848.86", "8849 m", "8848 m"]},
+    {"question": "What is the atomic number of the element named after the birth country of the first person to win Nobel Prizes in two different scientific fields?",
+     "answers": ["84"]},
+    {"question": "How many Earth days does it take the first planet other than Earth to be orbited by a human-made spacecraft to circle the Sun once? Round to the nearest whole number.",
+     "answers": ["687", "687 days"]},
 ]
 
 
+_SPECIAL = str.maketrans({"ø": "o", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l"})
+
+
 def normalize(text):
-    text = re.sub(r"[^a-z0-9]+", " ", str(text).lower()).strip()
+    text = unicodedata.normalize("NFKD", str(text).lower().translate(_SPECIAL))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"(?<=\d),(?=\d{3})", "", text)  # 2,351 == 2351
+    text = re.sub(r"[^a-z0-9]+", " ", text).strip()
     return re.sub(r"^(the|a|an) ", "", text)
 
 
