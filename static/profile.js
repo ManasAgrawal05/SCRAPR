@@ -15,7 +15,11 @@
   try { me = JSON.parse(store.get("scrapr:" + game)); } catch (_) {}
   const isHost = !!me && me.id === "p1";
 
-  let menuOpen = !!game && store.get(MENU_CLOSED) !== "1";  // open by default in a game, closed on the home screen
+  // The viewer page (a website opened from the results) keeps the menu shut so it can't cover the page or the
+  // "Open in new tab" / toggle buttons. That is a per-page state: the saved preference is untouched, so the search
+  // screens reopen it as before.
+  const inViewer = document.body.classList.contains("viewer");
+  let menuOpen = !!game && !inViewer && store.get(MENU_CLOSED) !== "1";  // open by default in a game, closed on the home screen
   let view = document.getElementById("lobby") ? "grid" : "leaderboard";
   let lastPhase = null;
   let snapshot = null;
@@ -111,7 +115,7 @@
 
   function setOpen(open) {
     menuOpen = open;
-    if (game) store.set(MENU_CLOSED, open ? "0" : "1");
+    if (game && !inViewer) store.set(MENU_CLOSED, open ? "0" : "1");  // peeking at the leaderboard in the viewer isn't a preference change
     render();
   }
 
