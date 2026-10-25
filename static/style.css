@@ -317,3 +317,7 @@ a.shop-title:hover { text-decoration: underline; }
 .set-row { flex-wrap: wrap; }
 .set-row[hidden] { display: none; }
 .seg button { padding: 6px 12px; }
+
+.vmode { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.vopen { margin-left: auto; text-decoration: none; display: inline-flex; align-items: center; }
+.vurl { flex: 1; min-width: 0; }

@@ -6,21 +6,43 @@
 <div class="viewbar">
   <button type="button" class="btn" id="vBack">&larr; Back</button>
   <div class="vurl" id="vUrl"></div>
+  <span class="vmode" id="vMode"></span>
+  <button type="button" class="btn" id="vToggle" title="If the live page looks blank or refuses to load, try the text copy (and the other way round)"></button>
+  <a class="btn vopen" id="vOpen" href="#" target="_blank" rel="noopener">Open in new tab &#8599;</a>
 </div>
 <iframe id="vFrame" class="vframe" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Page"></iframe>
 <script>
 (() => {
   const frame = document.getElementById("vFrame"), urlBox = document.getElementById("vUrl");
   const game = {{ (game or "")|tojson }};
-  const go = url => {
+  // 'direct': the site allows framing, so show the real page (it can't navigate our tab: no top-navigation permission).
+  // 'copy':   the site opts out of framing, so show our server-fetched, script-free copy instead.
+  let current = null;
+  const show = (url, mode) => {
+    current = { url, mode };
+    document.getElementById("vToggle").textContent = mode === "direct" ? "Switch to text copy" : "Switch to live page";
     urlBox.textContent = url;
-    frame.src = "/proxy?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url);
+    document.getElementById("vOpen").href = url;
+    document.getElementById("vMode").textContent = mode === "direct" ? "live page" : "text copy";
+    if (mode === "direct") {
+      frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+      frame.src = url;
+    } else {
+      frame.setAttribute("sandbox", "allow-scripts");
+      frame.src = "/proxy?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url);
+    }
   };
-  go({{ url|tojson }});
+  const go = async url => {
+    let mode = "copy";
+    try { mode = (await (await fetch("/probe?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url))).json()).mode; } catch (_) {}
+    show(url, mode);
+  };
+  show({{ url|tojson }}, {{ mode|tojson }});
   window.addEventListener("message", e => {
     if (e.source === frame.contentWindow && e.data && typeof e.data.scraprNav === "string") go(e.data.scraprNav);
   });
   document.getElementById("vBack").addEventListener("click", () => history.back());
+  document.getElementById("vToggle").addEventListener("click", () => show(current.url, current.mode === "direct" ? "copy" : "direct"));
 })();
 </script>
 {% endblock %}

@@ -312,7 +312,17 @@ def view_page():
     game = playing_game(request.args.get("game", ""))
     if not game:
         return redirect("/")
-    return render_template("view.html", url=url, game=game.id, q=request.args.get("q", ""))
+    forced = request.args.get("mode")  # ?mode=copy|direct overrides the automatic choice
+    return render_template("view.html", url=url, game=game.id, q=request.args.get("q", ""), mode=forced if forced in ("copy", "direct") else proxy.probe(url))
+
+
+@app.route("/probe")
+@limited("probe", 600)
+def probe_page():
+    """Which way should the viewer show this URL: 'direct' (real page in the frame) or 'copy' (our fetched copy)?"""
+    if not playing_game(request.args.get("game", "")):
+        return jsonify(mode="copy"), 403
+    return jsonify(mode=proxy.probe(request.args.get("url", "")))
 
 
 @app.route("/proxy")
@@ -327,12 +337,17 @@ def proxy_page():
         "X-Content-Type-Options": "nosniff",
     }
     try:
-        final, ctype, body, enc = proxy.fetch(url)
+        page = proxy.fetch(url)
     except proxy.ProxyError as e:
         return render_template("proxy_error.html", message=str(e), url=url), 502, headers
-    if "html" in ctype.lower():
-        return proxy.prepare_html(final, body, enc), 200, {**headers, "Content-Type": "text/html; charset=utf-8"}
-    return body, 200, {**headers, "Content-Type": ctype}
+    if page.status >= 400:
+        return render_template("proxy_error.html", message=proxy.explain(page.status), url=url), 200, headers
+    if "html" in page.ctype.lower():
+        html = proxy.prepare_html(page.url, page.body, page.encoding)
+        if proxy.text_length(html) < 150:  # nothing to read without running the site's own scripts
+            return render_template("proxy_error.html", url=url, message="This page draws itself with JavaScript, so there's no readable copy of it."), 200, headers
+        return html, 200, {**headers, "Content-Type": "text/html; charset=utf-8"}
+    return page.body, 200, {**headers, "Content-Type": page.ctype}
 
 
 def shop_search(q, game_id, question):

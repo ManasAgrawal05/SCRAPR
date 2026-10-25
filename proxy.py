@@ -1,16 +1,29 @@
-"""Fetch third-party pages server-side so they can be shown inside SCRAPR."""
+"""Show third-party pages inside SCRAPR without leaving the game.
+
+Tier 1  probe(): if the site allows being framed, the viewer embeds the real page directly (full fidelity, the player's
+        own browser does the loading). Sites that opt out of framing are never embedded live.
+Tier 2  fetch(): otherwise our server fetches the public page itself (no cookies, a Chrome-like TLS handshake so ordinary
+        bot filters don't refuse it) and serves a script-free sandboxed copy.
+Pages that need JavaScript to show anything, or that refuse the server, get a readable error instead of a blank frame."""
 import ipaddress
 import re
 import socket
+import threading
+import time
+from collections import namedtuple
 from urllib.parse import urljoin, urlparse
 
-import requests
+from curl_cffi import requests as cffi
+from curl_cffi.const import CurlOpt
 
 MAX_BYTES = 4 * 1024 * 1024
 MAX_HOPS = 5
-UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+TIMEOUT = 12
+PROBE_TTL = 3600
 
-# Runs inside the framed page: send link clicks to SCRAPR instead of navigating the frame.
+Fetched = namedtuple("Fetched", "url status ctype body encoding headers")
+
+# Runs inside the framed copy: send link clicks to SCRAPR instead of navigating the frame.
 INJECT = (
     '<script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href]");'
     'if(!a||!/^https?:/i.test(a.href))return;e.preventDefault();parent.postMessage({scraprNav:a.href},"*")},true)</script>'
@@ -21,42 +34,96 @@ class ProxyError(Exception):
     pass
 
 
-def _check_public(url):
-    """Refuse non-http(s) URLs and anything resolving to a private / loopback address (SSRF guard)."""
+def _public_target(url):
+    """Refuse non-http(s) URLs and anything that resolves to a private / loopback address (SSRF guard).
+    Returns (host, port, ip); the connection is then pinned to exactly this ip, so DNS can't change underneath us."""
     u = urlparse(url)
     if u.scheme not in ("http", "https") or not u.hostname:
         raise ProxyError("Only http(s) links can be opened.")
+    port = u.port or (443 if u.scheme == "https" else 80)
     try:
-        infos = socket.getaddrinfo(u.hostname, u.port or (443 if u.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
+        infos = socket.getaddrinfo(u.hostname, port, proto=socket.IPPROTO_TCP)
     except socket.gaierror:
         raise ProxyError("Could not find that site.")
-    for info in infos:
-        if not ipaddress.ip_address(info[4][0]).is_global:
-            raise ProxyError("That address is not allowed.")
+    ips = [i[4][0] for i in infos]
+    if not ips or any(not ipaddress.ip_address(ip).is_global for ip in ips):
+        raise ProxyError("That address is not allowed.")
+    ip = next((i for i in ips if ":" not in i), ips[0])  # prefer IPv4
+    return u.hostname, port, f"[{ip}]" if ":" in ip else ip
 
 
-def fetch(url):
-    """Returns (final_url, content_type, body_bytes, encoding). Follows redirects, re-checking each hop."""
+def _open(url):
+    """Follow redirects (re-checking every hop). Returns (final_url, streaming response)."""
     for _ in range(MAX_HOPS):
-        _check_public(url)
+        host, port, ip = _public_target(url)
         try:
-            r = requests.get(url, stream=True, timeout=10, allow_redirects=False,
-                             headers={"User-Agent": UA, "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
-                                      "Accept-Language": "en-US,en;q=0.9"})
-        except requests.RequestException:
+            r = cffi.get(url, impersonate="chrome", allow_redirects=False, timeout=TIMEOUT, stream=True,
+                         headers={"Accept-Language": "en-US,en;q=0.9"},
+                         curl_options={CurlOpt.RESOLVE: [f"{host}:{port}:{ip}".encode()]})
+        except Exception:
             raise ProxyError("The site did not respond.")
-        if r.is_redirect and r.headers.get("Location"):
+        if 300 <= r.status_code < 400 and r.headers.get("Location"):
             url = urljoin(url, r.headers["Location"])
             r.close()
             continue
+        return url, r
+    raise ProxyError("Too many redirects.")
+
+
+def fetch(url):
+    final, r = _open(url)
+    try:
         body = b""
         for chunk in r.iter_content(65536):
             body += chunk
             if len(body) > MAX_BYTES:
                 break
+        enc = re.search(r"charset=([\w-]+)", r.headers.get("Content-Type", ""), re.I)
+        return Fetched(final, r.status_code, r.headers.get("Content-Type", "application/octet-stream"), body[:MAX_BYTES],
+                       enc.group(1) if enc else None, {k.lower(): v for k, v in r.headers.items()})
+    finally:
         r.close()
-        return url, r.headers.get("Content-Type", "application/octet-stream"), body[:MAX_BYTES], r.encoding
-    raise ProxyError("Too many redirects.")
+
+
+# ---- tier 1: may we embed the real page? --------------------------------------------------
+_probe_cache, _probe_lock = {}, threading.Lock()
+
+
+def frameable(headers):
+    """True only if the site sends no framing restriction (or explicitly allows any ancestor)."""
+    if headers.get("x-frame-options"):
+        return False
+    m = re.search(r"frame-ancestors([^;,]*)", headers.get("content-security-policy", ""), re.I)
+    return not m or m.group(1).strip() == "*"
+
+
+def probe(url):
+    """'direct' (embed the real page) or 'copy' (use our server-fetched copy). Cached per host for an hour."""
+    host = (urlparse(url).hostname or "").lower()
+    now = time.time()
+    with _probe_lock:
+        hit = _probe_cache.get(host)
+        if hit and now - hit[0] < PROBE_TTL:
+            return hit[1]
+    try:
+        final, r = _open(url)
+        try:
+            mode = "direct" if frameable({k.lower(): v for k, v in r.headers.items()}) and urlparse(final).hostname == host else "copy"
+        finally:
+            r.close()
+    except ProxyError:
+        mode = "copy"
+    with _probe_lock:
+        if len(_probe_cache) > 2000:
+            _probe_cache.clear()
+        _probe_cache[host] = (now, mode)
+    return mode
+
+
+# ---- tier 2: the copy ---------------------------------------------------------------------
+def text_length(html):
+    html = re.sub(r"(?is)<(script|style|noscript|template)[^>]*>.*?</\1>", " ", html)
+    return len(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip())
 
 
 def prepare_html(url, body, encoding):
@@ -66,3 +133,16 @@ def prepare_html(url, body, encoding):
     if re.search(r"<head[^>]*>", html, re.I):
         return re.sub(r"(<head[^>]*>)", lambda m: m.group(1) + base + INJECT, html, count=1, flags=re.I)
     return base + INJECT + html
+
+
+def explain(status):
+    """Plain-English reason for a failed fetch."""
+    if status in (401, 403):
+        return "This site doesn't let our server read its page (it answered “forbidden”)."
+    if status == 404:
+        return "That page doesn't exist any more (404)."
+    if status == 429:
+        return "This site is limiting how fast we can load its pages. Try again in a minute."
+    if status >= 500:
+        return f"The site itself is having trouble right now (error {status})."
+    return f"The site answered with an error ({status})."
