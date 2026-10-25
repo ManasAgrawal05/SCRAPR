@@ -89,10 +89,4 @@
   document.addEventListener("keydown", e => {
     if (e.key === "/" && document.activeElement !== input) { e.preventDefault(); input.focus(); }
   });
-
-  const lucky = document.getElementById("btnLucky");
-  if (lucky) lucky.addEventListener("click", () => {
-    const q = input.value.trim();
-    if (q) location.href = "/lucky?q=" + encodeURIComponent(q);
-  });
 })();

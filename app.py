@@ -1,5 +1,7 @@
 import os
 import time
+from collections import deque
+from functools import wraps
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -48,6 +50,49 @@ RULES = dict(
 @app.context_processor
 def inject_rules():
     return {"rules": RULES}
+
+
+# ---- abuse protection -------------------------------------------------------
+# Search, suggestions and the page proxy spend SerpAPI credits / bandwidth, so they only work for
+# a game that is currently being played, and are rate-limited per client.
+MAX_GAMES = 500
+_hits = {}
+
+
+def client_ip():
+    # behind the Cloudflare Tunnel every request comes from loopback; the real address is in this header
+    if request.remote_addr in ("127.0.0.1", "::1"):
+        return request.headers.get("CF-Connecting-IP") or request.remote_addr
+    return request.remote_addr
+
+
+def limited(bucket, limit, per=60):
+    """Decorator: at most `limit` calls per `per` seconds per client IP, else 429."""
+    def deco(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            now = time.time()
+            if len(_hits) > 10000:
+                _hits.clear()
+            q = _hits.setdefault((bucket, client_ip()), deque())
+            while q and q[0] < now - per:
+                q.popleft()
+            if len(q) >= limit:
+                return jsonify(error="Too many requests. Slow down a little."), 429
+            q.append(now)
+            return fn(*args, **kwargs)
+        return wrapper
+    return deco
+
+
+def playing_game(game_id):
+    """The Game with this ID if it is being played right now, else None."""
+    try:
+        game = games.get(game_id)
+    except GameError:
+        return None
+    with game.lock:
+        return game if game.view()["status"] == "playing" else None
 
 
 class SearchError(Exception):
@@ -121,7 +166,10 @@ def _body():
 
 
 @app.post("/api/games")
+@limited("host", 60)
 def host_game():
+    if len(games.games) >= MAX_GAMES:
+        return jsonify(error="The server is full right now. Try again in a little while."), 503
     body = _body()
     game = games.create(DEFAULT_MODE)  # the host picks another mode from the lobby tabs
     with game.lock:
@@ -218,16 +266,17 @@ def view_page():
     url = request.args.get("url", "")
     if not url.startswith(("http://", "https://")):
         return redirect("/")
-    game_id = request.args.get("game", "").strip().upper()
-    try:
-        games.get(game_id)
-    except GameError:
-        game_id = ""
-    return render_template("view.html", url=url, game=game_id or None, q=request.args.get("q", ""))
+    game = playing_game(request.args.get("game", ""))
+    if not game:
+        return redirect("/")
+    return render_template("view.html", url=url, game=game.id, q=request.args.get("q", ""))
 
 
 @app.route("/proxy")
+@limited("proxy", 600)
 def proxy_page():
+    if not playing_game(request.args.get("game", "")):
+        return render_template("proxy_error.html", message="Pages can only be opened from inside a game.", url=""), 403
     url = request.args.get("url", "")
     headers = {
         # opaque origin: the framed page can never touch SCRAPR's storage (player tokens), even if opened directly
@@ -244,6 +293,7 @@ def proxy_page():
 
 
 @app.route("/search")
+@limited("search", 300)
 def search():
     q = request.args.get("q", "").strip()
     if not q:
@@ -252,16 +302,17 @@ def search():
         start = max(0, int(request.args.get("start", 0)))
     except ValueError:
         start = 0
-    game_id, question, g, blocked = request.args.get("game", "").strip().upper(), None, None, []
-    if game_id:
-        try:
-            g = games.get(game_id)
-            with g.lock:
-                state = g.view()["state"]
-                blocked = g.blocked_words(q)
-            question = state and state["question"]
-        except GameError:
-            game_id = ""
+    game_id = request.args.get("game", "").strip().upper()
+    try:
+        g = games.get(game_id)
+    except GameError:
+        return redirect("/")
+    with g.lock:
+        view = g.view()
+        blocked = g.blocked_words(q)
+    if view["status"] != "playing":  # search only exists inside a running game
+        return redirect("/game/" + g.id)
+    question = view["state"]["question"]
     data, error = {}, None
     if not blocked:  # a blocked search never reaches SerpAPI, so it costs no credit
         try:
@@ -302,37 +353,22 @@ def search():
     )
 
 
-@app.route("/lucky")
-def lucky():
-    q = request.args.get("q", "").strip()
-    if not q:
-        return redirect("/")
-    try:
-        data = serpapi({"engine": "google", "q": q, "num": 1})
-        return redirect(data["organic_results"][0]["link"])
-    except (SearchError, KeyError, IndexError):
-        return redirect(f"/search?q={q}")
-
-
 @app.route("/suggest")
+@limited("suggest", 900)
 def suggest():
     q = request.args.get("q", "").strip()
     if not q or os.environ.get("ENABLE_SUGGEST", "1") != "1":
         return jsonify([])
-    game = None
-    if request.args.get("game"):
-        try:
-            game = games.get(request.args["game"])
-        except GameError:
-            pass
-    allowed = lambda text: True
-    if game:
+    game = playing_game(request.args.get("game", ""))
+    if not game:
+        return jsonify([])
+    with game.lock:
+        if game.blocked_words(q):
+            return jsonify([])  # typed text already breaks the rule: skip the API call
+
+    def allowed(text):
         with game.lock:
-            if game.blocked_words(q):
-                return jsonify([])  # typed text already breaks the rule: skip the API call
-        def allowed(text):
-            with game.lock:
-                return not game.blocked_words(text)
+            return not game.blocked_words(text)
     try:
         data = serpapi({"engine": "google_autocomplete", "q": q})
     except SearchError:

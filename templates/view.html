@@ -14,7 +14,7 @@
   const game = {{ (game or "")|tojson }};
   const go = url => {
     urlBox.textContent = url;
-    frame.src = "/proxy?url=" + encodeURIComponent(url);
+    frame.src = "/proxy?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url);
   };
   go({{ url|tojson }});
   window.addEventListener("message", e => {
