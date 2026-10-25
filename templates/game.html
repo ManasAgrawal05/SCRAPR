@@ -37,15 +37,27 @@
   const isHost = !!me && me.id === "p1";
   // Game-mode tabs: the host picks the mode; everyone sees the choice.
   const tabs = [...document.querySelectorAll("#modeTabs a")];
+  let preview = null, lastGame = null;  // preview: a coming-soon tab the host has clicked
+  function renderMode() {
+    if (!lastGame) return;
+    const shown = preview ? preview.dataset.mode : lastGame.mode;
+    tabs.forEach(t => t.classList.toggle("active", t.dataset.mode === shown));
+    const t = tabs.find(x => x.dataset.mode === shown);
+    $("modeBlurb").textContent = preview ? preview.textContent + " is coming soon. Pick All to play." : t.dataset.blurb;
+    const lobby = lastGame.status === "waiting" || lastGame.status === "ready";
+    $("btnStart").disabled = lastGame.status !== "ready" || !!preview;
+    $("btnStart").title = preview ? "Pick a playable mode to start" : "";
+    $("modeTabs").classList.toggle("locked", !isHost || !lobby);
+  }
   tabs.forEach(t => t.addEventListener("click", async e => {
     e.preventDefault();
     if (!isHost || $("modeTabs").classList.contains("locked")) return;
-    if (t.dataset.available !== "1") {
-      $("modeBlurb").textContent = t.textContent + " is coming soon.";
-      $("modeBlurb").dataset.pinned = "1";  // keep the note up for a few seconds, past the next poll
-      setTimeout(() => { delete $("modeBlurb").dataset.pinned; }, 3000);
+    if (t.dataset.available !== "1") {  // highlight it for the host only; the game itself stays on a playable mode
+      preview = t;
+      renderMode();
       return;
     }
+    preview = null;
     await fetch("/api/games/" + id + "/mode", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
       body: JSON.stringify({ mode: t.dataset.mode }),
@@ -68,13 +80,10 @@
         playing: "Game on!",
         finished: "Game over",
       }[g.status];
-      tabs.forEach(t => t.classList.toggle("active", t.dataset.mode === g.mode));
-      $("modeTabs").classList.toggle("locked", !isHost || !(g.status === "waiting" || g.status === "ready"));
-      const cur = tabs.find(t => t.dataset.mode === g.mode);
-      if (cur && !$("modeBlurb").dataset.pinned) $("modeBlurb").textContent = cur.dataset.blurb;
+      lastGame = g;
       const start = $("btnStart");
       start.hidden = !(isHost && (g.status === "waiting" || g.status === "ready"));
-      start.disabled = g.status !== "ready";
+      renderMode();
       const playing = g.status === "playing" || g.status === "finished";
       $("lobby").hidden = playing;
       if (playing && $("searchview").hidden) {
