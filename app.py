@@ -8,8 +8,8 @@ from flask import Flask, Response, jsonify, redirect, render_template, request
 
 import proxy
 import quiz
+from modes import DEFAULT_MODE, MODES
 from game import MAX_PLAYERS, MIN_PLAYERS, GameError, GameManager
-from quiz import QuizEngine
 
 SERPAPI_URL = "https://serpapi.com/search.json"
 PAGE_SIZE = 10
@@ -31,7 +31,7 @@ load_env()
 app = Flask(__name__)
 _cache = {}
 _words = {}  # (query, start) -> word count of each organic result shown
-games = GameManager(QuizEngine)
+games = GameManager({m["id"]: m["engine"] for m in MODES if m["engine"]})
 
 
 # Numbers shown in the Rules panel come from the engine's constants, so the text can't drift from the game.
@@ -105,7 +105,7 @@ def game_page(game_id):
         game = games.get(game_id)
     except GameError:
         return redirect("/")
-    return render_template("game.html", game_id=game.id)
+    return render_template("game.html", game_id=game.id, modes=MODES)
 
 
 # ---- game API -------------------------------------------------------------
@@ -122,8 +122,8 @@ def _body():
 
 @app.post("/api/games")
 def host_game():
-    game = games.create()
     body = _body()
+    game = games.create(DEFAULT_MODE)  # the host picks another mode from the lobby tabs
     with game.lock:
         player = game.add_player(str(body.get("name", "")).strip()[:24], body.get("avatar"))
     return jsonify(game=game.view(), player=player), 201
@@ -162,6 +162,14 @@ def avatar(game_id, player_id):
     if not data:
         return "", 404
     return Response(data, mimetype="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.post("/api/games/<game_id>/mode")
+def set_mode(game_id):
+    game = games.get(game_id)
+    with game.lock:
+        game.set_mode(request.headers.get("X-Player-Token"), _body().get("mode"))
+        return jsonify(game.view())
 
 
 @app.post("/api/games/<game_id>/settings")

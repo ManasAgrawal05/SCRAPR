@@ -264,3 +264,9 @@ body.viewer { display: flex; flex-direction: column; height: 100vh; }
 .switch { width: 18px; height: 18px; accent-color: var(--accent); flex: none; cursor: pointer; }
 .set-note { color: var(--muted); font-size: 12px; padding-top: 4px; }
 .set-note:empty { display: none; }
+
+/* lobby: results-style header with game-mode tabs */
+.lobby-header .tb-widgets { margin-left: auto; }
+.tabs.locked a { cursor: default; }
+.mode-blurb { color: var(--muted); font-size: 15px; margin: 0 0 18px; min-height: 22px; }
+.game-main { padding-top: 6vh; }

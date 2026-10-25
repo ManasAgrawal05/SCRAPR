@@ -66,15 +66,17 @@ class Engine:
 
 
 class Game:
-    def __init__(self, game_id, engine_cls):
+    def __init__(self, game_id, engines, mode="all"):
         self.id = game_id
+        self.engines = engines  # mode id -> Engine subclass
+        self.mode = mode
         self.status = "waiting"  # waiting -> ready (2 players) -> playing (host started)
         self.players = []
         self.started_at = None
         self.events = []  # tracking log: searches and result clicks, t = seconds since start
         self.stats = {}
         self.settings = {"difficulty": "difficult", "block_words": True}  # host edits these in the lobby
-        self.engine = engine_cls()
+        self.engine = engines[mode]()
         self.version = 0  # bumps on every change, so clients can poll cheaply
         self.touched = time.time()
         self.lock = threading.Lock()
@@ -118,6 +120,18 @@ class Game:
         self.status = "playing"
         self.started_at = time.time()
         self.engine.start(self.players, dict(self.settings))
+        self._bump()
+
+    def set_mode(self, token, mode):
+        player = self.player_for(token)
+        if player is not self.players[0]:
+            raise GameError("Only the host can pick the game mode", 403)
+        if self.status not in ("waiting", "ready"):
+            raise GameError("The mode is locked once the game starts", 409)
+        if mode not in self.engines:
+            raise GameError("That game mode isn't available yet", 400)
+        self.mode = mode
+        self.engine = self.engines[mode]()
         self._bump()
 
     def set_settings(self, token, data):
@@ -187,6 +201,7 @@ class Game:
         self._sync()
         return {
             "id": self.id,
+            "mode": self.mode,
             "status": self.status,
             "version": self.version,
             "players": [{"id": p["id"], "name": p["name"],
@@ -205,19 +220,21 @@ class Game:
 
 
 class GameManager:
-    def __init__(self, engine_cls=Engine):
-        self.engine_cls = engine_cls
+    def __init__(self, engines):
+        self.engines = engines  # mode id -> Engine subclass
         self.games = {}
         self.lock = threading.Lock()
 
-    def create(self):
+    def create(self, mode="all"):
+        if mode not in self.engines:
+            raise GameError("That game mode isn't available yet", 400)
         with self.lock:
             self._prune()
             while True:
                 gid = "".join(secrets.choice(ID_ALPHABET) for _ in range(ID_LENGTH))
                 if gid not in self.games:
                     break
-            self.games[gid] = Game(gid, self.engine_cls)
+            self.games[gid] = Game(gid, self.engines, mode)
             return self.games[gid]
 
     def get(self, game_id):

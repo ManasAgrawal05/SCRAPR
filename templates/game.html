@@ -3,10 +3,18 @@
 {% block body %}
 {% set game = game_id %}{% set q = '' %}{% set page = '' %}
 <div id="lobby">
-<header class="topbar">{% include "_topbar.html" %}</header>
+<header class="result-header lobby-header">
+  <a href="/" class="mini-logo"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="30"></a>
+  {% include "_topbar.html" %}
+  <div class="tabs-row">
+    <nav class="tabs" id="modeTabs" aria-label="Game modes">
+      {% for m in modes %}<a href="#" data-mode="{{ m.id }}" data-available="{{ 1 if m.engine else 0 }}" data-blurb="{{ m.blurb }}">{{ m.label }}</a>{% endfor %}
+    </nav>
+  </div>
+</header>
 <main class="game-main" data-game="{{ game_id }}">
-  <a href="/"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="50"></a>
   <div class="game-code">{{ game_id }}</div>
+  <div class="mode-blurb" id="modeBlurb"></div>
   <div class="game-status" id="status">Connecting…</div>
   <ul class="game-players" id="players"></ul>
   <button type="button" class="btn" id="btnStart" hidden>Start Game</button>
@@ -27,6 +35,23 @@
   try { me = JSON.parse(sessionStorage.getItem("scrapr:" + id)); } catch (_) {}
   const $ = s => document.getElementById(s);
   const isHost = !!me && me.id === "p1";
+  // Game-mode tabs: the host picks the mode; everyone sees the choice.
+  const tabs = [...document.querySelectorAll("#modeTabs a")];
+  tabs.forEach(t => t.addEventListener("click", async e => {
+    e.preventDefault();
+    if (!isHost || $("modeTabs").classList.contains("locked")) return;
+    if (t.dataset.available !== "1") {
+      $("modeBlurb").textContent = t.textContent + " is coming soon.";
+      $("modeBlurb").dataset.pinned = "1";  // keep the note up for a few seconds, past the next poll
+      setTimeout(() => { delete $("modeBlurb").dataset.pinned; }, 3000);
+      return;
+    }
+    await fetch("/api/games/" + id + "/mode", {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
+      body: JSON.stringify({ mode: t.dataset.mode }),
+    });
+    poll();
+  }));
   $("btnStart").addEventListener("click", async () => {
     $("btnStart").disabled = true;
     await fetch("/api/games/" + id + "/start", { method: "POST", headers: { "X-Player-Token": me.token } });
@@ -43,6 +68,10 @@
         playing: "Game on!",
         finished: "Game over",
       }[g.status];
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.mode === g.mode));
+      $("modeTabs").classList.toggle("locked", !isHost || !(g.status === "waiting" || g.status === "ready"));
+      const cur = tabs.find(t => t.dataset.mode === g.mode);
+      if (cur && !$("modeBlurb").dataset.pinned) $("modeBlurb").textContent = cur.dataset.blurb;
       const start = $("btnStart");
       start.hidden = !(isHost && (g.status === "waiting" || g.status === "ready"));
       start.disabled = g.status !== "ready";
