@@ -28,4 +28,10 @@
         <li>When one player gets it right, everyone else has {{ rules.grace }} seconds to finish.</li>
         <li>A round also ends after {{ rules.limit_min }} minutes if nobody solves it. There are {{ rules.intermission }} seconds between rounds.</li>
       </ul>
-    </div>
+          <h4>Shopping mode</h4>
+      <ul>
+        <li>You&rsquo;re given an item to find. Search, click one listing to select it, then press <b>Submit selection</b>. The listing has to mention the item in its title, description or store name. No search restrictions here.</li>
+        <li>A matching listing starts at <b>{{ rules.shop_base }}</b> points, plus up to <b>{{ rules.shop_rating }}</b> for its star rating (3 stars is 0, 5 stars is the full amount, no rating is 0), up to <b>{{ rules.shop_cost }}</b> for a low price (measured against a normal price range for that item), and up to <b>{{ rules.shop_speed }}</b> for speed (fading over {{ rules.shop_window // 60 }} minutes).</li>
+        <li>&minus;{{ rules.shop_wrong }} for each submission that doesn&rsquo;t match the item. Rounds, timers and the leaderboard work as above.</li>
+      </ul>
+</div>

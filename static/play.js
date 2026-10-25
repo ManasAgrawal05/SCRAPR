@@ -23,7 +23,7 @@
       method: "POST", keepalive: true,
       headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
       body: JSON.stringify(body),
-    }).then(r => r.json().then(data => ({ ok: r.ok, data }))).catch(() => null);
+    }).then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data }))).catch(() => null);
   };
   const post = (path, body) => api(path, body).then(r => { if (r && r.ok) apply(r.data); return r; });
 
@@ -35,6 +35,42 @@
     return (p ? p.name : pid) + (me && me.id === pid ? " (you)" : "");
   };
 
+  // ---- shopping: select one listing, then submit it ----------------------------
+  const SEL = "scrapr:sel:" + id;
+  const loadSel = () => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(SEL));
+      return v && game && game.state && v.round === game.state.round ? v : null;  // a pick from an earlier round is stale
+    } catch (_) { return null; }
+  };
+  const saveSel = v => { try { v ? sessionStorage.setItem(SEL, JSON.stringify(v)) : sessionStorage.removeItem(SEL); } catch (_) {} };
+  function renderSel() {
+    const sel = loadSel();
+    $("selSummary").textContent = sel
+      ? "Selected: " + sel.title + " · " + sel.price_text + (sel.rating ? " · ★" + sel.rating : "")
+      : "Nothing selected yet. Click a listing.";
+    document.querySelectorAll(".shop-card").forEach(c => {
+      const on = !!sel && c.dataset.id === sel.id;
+      c.classList.toggle("selected", on);
+      c.setAttribute("aria-pressed", on);
+    });
+  }
+  function pick(card) {
+    const g = game && game.state;
+    const mine = g && me && g.players[me.id];
+    if (!g || g.kind !== "shopping" || g.phase !== "round" || !mine || mine.status !== "searching") return;
+    const ratingEl = card.querySelector(".shop-rating b");
+    // only the id matters to the server; the rest is just for the summary line
+    saveSel({ id: card.dataset.id, round: g.round, title: card.querySelector(".shop-title").textContent,
+              price_text: card.querySelector(".shop-price").textContent, rating: ratingEl ? parseFloat(ratingEl.textContent) : null });
+    feedback = "";
+    render();
+  }
+  document.addEventListener("click", e => { const c = e.target.closest && e.target.closest(".shop-card"); if (c) pick(c); });
+  document.addEventListener("keydown", e => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("shop-card")) { e.preventDefault(); pick(e.target); }
+  });
+
   function render() {
     const s = game && game.state;
     if (!s) return;
@@ -42,6 +78,11 @@
     $("roundlabel").textContent = "Round " + s.round + "/" + s.of;
     $("qtext").textContent = s.question;
     $("counts").textContent = mine ? mine.searches + " searches, " + mine.clicks + " clicks" : "";
+    const shop = s.kind === "shopping";  // shopping: pick a listing instead of typing an answer
+    $("answerInput").hidden = shop;
+    $("selSummary").hidden = !shop;
+    $("answerBtn").textContent = shop ? "Submit selection" : "Submit answer";
+    if (shop) renderSel();
     $("answerForm").hidden = !(mine && s.phase === "round" && mine.status === "searching");
     $("answerMsg").textContent = mine && mine.status === "solved" && s.phase === "round"
       ? "Correct! +" + mine.points + " pts" : feedback;
@@ -61,11 +102,24 @@
     const last = s.history[s.history.length - 1];
     if (s.phase === "intermission") {
       card.append(el("h2", "", "Round " + last.round + " of " + s.of + " complete"));
-      card.append(el("p", "ov-answer", "Answer: " + last.answer));
+      card.append(el("p", "ov-answer", last.reveal || "Answer: " + last.answer));
     } else {
       const w = s.winner;
       card.append(el("h2", "", "Game over"));
       card.append(el("p", "ov-answer", w === "draw" ? "It's a draw!" : me ? (w === me.id ? "You win!" : "You lose.") : name(w) + " wins"));
+    }
+    if (s.kind === "shopping") {  // what everyone picked in the round that just ended
+      const picks = el("ul", "ov-picks");
+      game.players.forEach(p => {
+        const r = last.players[p.id], li = el("li");
+        if (r.pick) {
+          li.append(document.createTextNode(name(p.id) + ": " + r.pick.title + " — " + r.pick.price_text + (r.pick.rating ? " · ★" + r.pick.rating : "")));
+          const b = r.breakdown;
+          li.append(el("small", "", "rating +" + b.rating + " · price +" + b.cost + " · speed +" + b.speed + (b.wrong ? " · wrong picks " + b.wrong : "") + " = " + b.total));
+        } else li.append(document.createTextNode(name(p.id) + ": no pick"));
+        picks.append(li);
+      });
+      card.append(picks);
     }
     const table = el("table", "ov-table");
     const head = el("tr");
@@ -79,7 +133,7 @@
       s.history.forEach(h => {
         const r = h.players[p.id];
         const cell = el("td", "", r.status === "solved" ? "+" + r.points : "–");
-        cell.title = r.status === "solved" ? "Solved in " + fmt(r.time) : "Did not finish";
+        cell.title = r.status === "solved" ? (r.pick ? r.pick.title + " · " : "") + "Done in " + fmt(r.time) : "Did not finish";
         row.append(cell);
       });
       row.append(el("td", "ov-total", String(s.totals[p.id])));
@@ -117,6 +171,17 @@
 
   $("answerForm").addEventListener("submit", async e => {
     e.preventDefault();
+    if (game && game.state && game.state.kind === "shopping") {
+      const sel = loadSel();
+      if (!sel) { feedback = "Select a listing first."; render(); return; }
+      const r = await post("action", { action: { type: "select", item_id: sel.id } });
+      if (!r) feedback = "Couldn't reach the server.";
+      else if (!r.ok) { feedback = r.data.error || "Something went wrong."; if (r.status === 410) saveSel(null); }
+      else if (!r.data.result.correct) feedback = r.data.result.message || "That listing doesn't match the task.";
+      else { feedback = ""; saveSel(null); }
+      render();
+      return;
+    }
     const input = $("answerInput");
     const text = input.value.trim();
     if (!text) return;

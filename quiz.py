@@ -153,6 +153,8 @@ def score(seconds, clicks, wrong):
 
 
 class QuizEngine(Engine):
+    kind = "quiz"
+
     def __init__(self):
         self.clock = time.time
         self.finished = False
@@ -190,12 +192,32 @@ class QuizEngine(Engine):
         q = self.rounds[self.index]
         for pid, p in self.p.items():
             self.totals[pid] += p["points"]
-        self.history.append({"round": self.index + 1, "question": q["question"], "answer": q["answers"][0],
-                             "players": {pid: {k: p[k] for k in ("status", "time", "points")} for pid, p in self.p.items()}})
+        self.history.append({"round": self.index + 1, "question": q["question"], "answer": self.reveal(q),
+                             "reveal": self.reveal_text(q),
+                             "players": {pid: self.player_result(p) for pid, p in self.p.items()}})
         if self.index + 1 >= len(self.rounds):
             self.phase, self.finished = "finished", True
         else:
             self.phase, self.next_at = "intermission", now + INTERMISSION
+
+    # hooks other round-based engines (shopping.py) override
+    def reveal(self, q):
+        return q["answers"][0]
+
+    def reveal_text(self, q):
+        return "Answer: " + self.reveal(q)
+
+    def player_result(self, p):
+        return {k: p[k] for k in ("status", "time", "points")}
+
+    def _mark_solved(self, me, points):
+        """Record a correct answer, end the round if everyone is done, else start the others' grace timer."""
+        now = self.clock()
+        me["status"], me["time"], me["points"] = "solved", round(now - self.round_started, 2), points
+        if all(p["status"] != "searching" for p in self.p.values()):
+            self._end_round(now)
+        elif self.deadline is None:
+            self.deadline = now + GRACE
 
     def tick(self):
         """Advance timers lazily; called before every read/write."""
@@ -229,13 +251,7 @@ class QuizEngine(Engine):
         if guess not in {normalize(a) for a in self.rounds[self.index]["answers"]}:
             me["wrong"] += 1
             return {"correct": False}
-        now = self.clock()
-        me["status"], me["time"] = "solved", round(now - self.round_started, 2)
-        me["points"] = score(me["time"], me["clicks"], me["wrong"])
-        if all(p["status"] != "searching" for p in self.p.values()):
-            self._end_round(now)
-        elif self.deadline is None:
-            self.deadline = now + GRACE
+        self._mark_solved(me, score(round(self.clock() - self.round_started, 2), me["clicks"], me["wrong"]))
         return {"correct": True, "points": me["points"]}
 
     def blocked_info(self, query):
@@ -263,6 +279,7 @@ class QuizEngine(Engine):
     # -- public state ------------------------------------------------------
     def state(self):
         s = {
+            "kind": self.kind,
             "phase": self.phase,
             "round": self.index + 1,
             "of": len(self.rounds),

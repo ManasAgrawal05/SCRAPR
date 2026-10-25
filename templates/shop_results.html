@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ q }} - SCRAPR{% endblock %}
+{% block bodyclass %}results shop{% endblock %}
+{% block body %}
+<div class="sticky-top">
+{% include "_hud.html" %}
+<header class="result-header">
+  <a href="/game/{{ game }}" class="mini-logo"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="30"></a>
+  {% include "_searchbox.html" %}
+  <div class="tabs-row">
+    <nav class="tabs"><a class="active" href="/search?q={{ q|urlencode }}{{ gq }}">Shopping</a></nav>
+  </div>
+</header>
+</div>
+
+<main class="shop-main">
+  {% if error %}
+    <div class="notice"><b>Search failed.</b><br>{{ error }}</div>
+  {% elif not items %}
+    <p class="noresults">No shopping results for <b>{{ q }}</b>. Try different words.</p>
+  {% else %}
+    <div class="stats">Click a listing to select it, then press <b>Submit selection</b> at the top.</div>
+    <div class="shop-grid">
+      {% for it in items %}
+      <div class="shop-card" data-id="{{ it.id }}" tabindex="0" role="button" aria-pressed="false">
+        <div class="shop-img">{% if it.thumbnail %}<img src="{{ it.thumbnail }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
+        <div class="shop-price">{{ it.price_text }}</div>
+        <div class="shop-title">{{ it.title }}</div>
+        <div class="shop-source">{{ it.source }}</div>
+        <div class="shop-rating">
+          {% if it.rating %}<span class="stars" style="--r: {{ (it.rating / 5 * 100)|round(0) }}%"></span> <b>{{ it.rating }}</b>{% if it.reviews %} <span class="muted">({{ it.reviews|compact }})</span>{% endif %}
+          {% else %}<span class="muted">No rating</span>{% endif %}
+        </div>
+        {% if it.snippet %}<div class="shop-snippet">{{ it.snippet }}</div>{% endif %}
+        {% if it.tag %}<div class="shop-tag">{{ it.tag }}</div>{% endif %}
+        {% if it.delivery %}<div class="shop-extra">{{ it.delivery }}</div>{% endif %}
+        <div class="shop-sel">&#10003; Selected</div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</main>
+<footer class="result-footer"><div>Listings from Google Shopping via SerpAPI</div></footer>
+{% endblock %}

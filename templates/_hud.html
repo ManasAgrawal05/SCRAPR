@@ -4,7 +4,8 @@
   {% include "_topbar.html" %}
   <form class="answer-form" id="answerForm" autocomplete="off">
     <input id="answerInput" placeholder="Type your answer" aria-label="Your answer">
-    <button type="submit" class="btn">Submit answer</button>
+    <span id="selSummary" hidden></span>
+    <button type="submit" class="btn" id="answerBtn">Submit answer</button>
     <span id="answerMsg"></span>
   </form>
 </div>

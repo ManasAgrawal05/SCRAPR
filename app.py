@@ -10,6 +10,7 @@ from flask import Flask, Response, jsonify, redirect, render_template, request
 
 import proxy
 import quiz
+import shopping
 from modes import DEFAULT_MODE, MODES
 from game import MAX_PLAYERS, MIN_PLAYERS, GameError, GameManager
 
@@ -44,6 +45,8 @@ RULES = dict(
     per_wrong=quiz.WRONG_PENALTY, max_wrong=quiz.MAX_WRONG_PENALTY,
     floor=quiz.BASE - quiz.MAX_TIME_PENALTY - quiz.MAX_CLICK_PENALTY - quiz.MAX_WRONG_PENALTY,
     grace=quiz.GRACE, limit_min=quiz.ROUND_LIMIT // 60, intermission=quiz.INTERMISSION,
+    shop_base=shopping.BASE, shop_rating=shopping.RATING_PTS, shop_cost=shopping.COST_PTS, shop_speed=shopping.SPEED_PTS,
+    shop_window=shopping.SPEED_WINDOW, shop_wrong=shopping.WRONG_PENALTY,
 )
 
 
@@ -129,6 +132,20 @@ def shorten_link(link):
     u = urlparse(link)
     parts = [p for p in u.path.split("/") if p]
     return " › ".join([u.netloc.removeprefix("www."), *parts[:3]])
+
+
+@app.template_filter("compact")
+def compact(n):
+    """94000 -> 94K"""
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        return ""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M".replace(".0M", "M")
+    if n >= 1000:
+        return f"{n / 1000:.1f}K".replace(".0K", "K")
+    return str(n)
 
 
 @app.template_filter("num")
@@ -304,6 +321,18 @@ def proxy_page():
     return body, 200, {**headers, "Content-Type": ctype}
 
 
+def shop_search(q, game_id, question):
+    """Shopping mode: the same search box, but the results are Google Shopping listings players can select."""
+    data, error = {}, None
+    try:
+        data = serpapi({"engine": "google_shopping", "q": q, "hl": "en", "gl": "us"})
+    except SearchError as e:
+        error = str(e)
+    items = shopping.remember(shopping.parse(data.get("shopping_results", [])))
+    return render_template("shop_results.html", q=q, game=game_id, gq=f"&game={game_id}", question=question,
+                           page=1, start=0, items=items, error=error)
+
+
 @app.route("/search")
 @limited("search", 300)
 def search():
@@ -325,6 +354,8 @@ def search():
     if view["status"] != "playing":  # search only exists inside a running game
         return redirect("/game/" + g.id)
     question = view["state"]["question"]
+    if view["mode"] == "shopping":
+        return shop_search(q, game_id, question)
     data, error = {}, None
     if not blocked:  # a blocked search never reaches SerpAPI, so it costs no credit
         try:

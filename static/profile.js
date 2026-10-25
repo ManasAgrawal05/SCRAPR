@@ -87,12 +87,13 @@
     const box = root.querySelector('[data-view="settings"]');
     if (!box || !snapshot) return;
     const st = snapshot.settings, lobby = snapshot.status === "waiting" || snapshot.status === "ready";
-    const editable = isHost && lobby;
+    const quizMode = snapshot.mode === "all";  // difficulty and the key-word limit only apply to the quiz
+    const editable = isHost && lobby && quizMode;
     box.querySelectorAll(".seg button").forEach(b => { b.classList.toggle("on", b.dataset.v === st.difficulty); b.disabled = !editable; });
     const chk = box.querySelector(".set-block");
     chk.checked = st.block_words;
     chk.disabled = !editable;
-    box.querySelector(".set-note").textContent = editable ? ""
+    box.querySelector(".set-note").textContent = !quizMode ? "This game mode has no settings yet." : editable ? ""
       : lobby ? "Only the host can change these." : "Settings are locked once the game starts.";
   }
 
