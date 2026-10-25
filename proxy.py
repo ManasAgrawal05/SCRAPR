@@ -97,6 +97,19 @@ def frameable(headers):
     return not m or m.group(1).strip() == "*"
 
 
+_WALL_SIGNS = (b"awswaf", b"awswafintegration", b"px-captcha", b"captcha-delivery", b"just a moment", b"datadome",
+               b"/cdn-cgi/challenge-platform", b"verify you are human", b"enable javascript and cookies")
+
+
+def bot_wall(status, headers, body):
+    """Is this a bot-check page (AWS WAF, Cloudflare, PerimeterX, DataDome...) instead of the real page?
+    Those checks need to store a cookie to be passed, which neither a sandboxed copy nor a third-party frame can do."""
+    if headers.get("x-amzn-waf-action") or headers.get("cf-mitigated"):
+        return True
+    low = body[:30000].lower()
+    return status in (202, 401, 403, 405, 429, 503) and any(sign in low for sign in _WALL_SIGNS)
+
+
 def probe(url):
     """'direct' (embed the real page) or 'copy' (use our server-fetched copy). Cached per host for an hour."""
     host = (urlparse(url).hostname or "").lower()
@@ -108,7 +121,10 @@ def probe(url):
     try:
         final, r = _open(url)
         try:
-            mode = "direct" if frameable({k.lower(): v for k, v in r.headers.items()}) and urlparse(final).hostname == host else "copy"
+            headers = {k.lower(): v for k, v in r.headers.items()}
+            first = next(r.iter_content(30000), b"") if r.status_code != 200 or headers.get("x-amzn-waf-action") else b""
+            walled = bot_wall(r.status_code, headers, first)
+            mode = "direct" if frameable(headers) and not walled and urlparse(final).hostname == host else "copy"
         finally:
             r.close()
     except ProxyError:

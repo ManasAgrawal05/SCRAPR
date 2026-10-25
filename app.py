@@ -340,6 +340,8 @@ def proxy_page():
         page = proxy.fetch(url)
     except proxy.ProxyError as e:
         return render_template("proxy_error.html", message=str(e), url=url), 502, headers
+    if proxy.bot_wall(page.status, page.headers, page.body):
+        return render_template("proxy_error.html", url=url, message="This site runs a bot check before showing its page (IMDb does this). Only a normal browser visit can pass it, so it can't be shown inside the game."), 200, headers
     if page.status >= 400:
         return render_template("proxy_error.html", message=proxy.explain(page.status), url=url), 200, headers
     if "html" in page.ctype.lower():

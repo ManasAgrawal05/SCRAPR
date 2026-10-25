@@ -17,31 +17,48 @@
   const game = {{ (game or "")|tojson }};
   // 'direct': the site allows framing, so show the real page (it can't navigate our tab: no top-navigation permission).
   // 'copy':   the site opts out of framing, so show our server-fetched, script-free copy instead.
+  const trail = [];  // pages opened in this viewer, so Back steps through them before leaving for the results
   let current = null;
+  // Assigning frame.src would ADD a browser-history entry, so the first Back click only rewound the frame to its blank
+  // start page. location.replace() swaps the entry instead, keeping the viewer to exactly one entry.
+  const load = target => {
+    try { frame.contentWindow.location.replace(target); } catch (_) { frame.src = target; }
+  };
   const show = (url, mode) => {
     current = { url, mode };
+    trail[trail.length - 1] = current;  // the entry on top of the trail is the page being shown
     document.getElementById("vToggle").textContent = mode === "direct" ? "Switch to text copy" : "Switch to live page";
     urlBox.textContent = url;
     document.getElementById("vOpen").href = url;
     document.getElementById("vMode").textContent = mode === "direct" ? "live page" : "text copy";
     if (mode === "direct") {
       frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
-      frame.src = url;
+      load(url);
     } else {
       frame.setAttribute("sandbox", "allow-scripts");
-      frame.src = "/proxy?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url);
+      load("/proxy?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url));
     }
   };
-  const go = async url => {
+  const go = async url => {  // a link clicked inside the text copy
     let mode = "copy";
     try { mode = (await (await fetch("/probe?game=" + encodeURIComponent(game) + "&url=" + encodeURIComponent(url))).json()).mode; } catch (_) {}
+    trail.push(null);
     show(url, mode);
   };
+  trail.push(null);
   show({{ url|tojson }}, {{ mode|tojson }});
   window.addEventListener("message", e => {
     if (e.source === frame.contentWindow && e.data && typeof e.data.scraprNav === "string") go(e.data.scraprNav);
   });
-  document.getElementById("vBack").addEventListener("click", () => history.back());
+  document.getElementById("vBack").addEventListener("click", () => {
+    if (trail.length > 1) {  // back to the previous page inside the viewer
+      trail.pop();
+      const prev = trail[trail.length - 1];
+      show(prev.url, prev.mode);
+    } else {
+      history.back();  // nothing left in the viewer: back to the results, in one click
+    }
+  });
   document.getElementById("vToggle").addEventListener("click", () => show(current.url, current.mode === "direct" ? "copy" : "direct"));
 })();
 </script>
