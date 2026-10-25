@@ -1,5 +1,5 @@
 <div class="tb-widgets" data-game="{{ game or '' }}">
-  <button type="button" class="top-icon tb-apps" aria-label="{{ 'Leaderboard' if game else 'SCRAPR apps' }}" title="{{ 'Leaderboard' if game else 'SCRAPR apps' }}"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+  <button type="button" class="top-icon tb-apps" aria-label="{{ 'Leaderboard' if game else 'How to play' }}" title="{{ 'Leaderboard' if game else 'How to play' }}"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
   <button type="button" class="tb-profile" aria-label="Profile" title="Profile"><span class="av"></span><span class="pname"></span></button>
 
   <div class="tb-pop" hidden>
@@ -20,4 +20,5 @@
     <div class="lb-head"><b>Leaderboard</b><button type="button" class="lb-close" aria-label="Close leaderboard">&times;</button></div>
     <ol class="lb-list"></ol>
   </div>
+  {% if not game and rules %}{% include "_rules.html" %}{% endif %}
 </div>

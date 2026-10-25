@@ -215,3 +215,11 @@ body.viewer { display: flex; flex-direction: column; height: 100vh; }
 .searchbox-wrap { position: relative; }
 .banned-note { position: absolute; left: 20px; top: calc(100% + 4px); color: #d93025; font-size: 12px; z-index: 4; }
 .banned-note[hidden] { display: none; }
+
+.tb-rules { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 380px; max-width: calc(100vw - 24px); max-height: calc(100vh - 90px); overflow-y: auto;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  padding: 16px 20px; font-size: 14px; text-align: left; line-height: 1.5; }
+.tb-rules[hidden] { display: none; }
+.tb-rules h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.tb-rules ul { margin: 0; padding-left: 18px; }
+.tb-rules li { margin: 4px 0; }

@@ -137,13 +137,25 @@
     name.addEventListener("keydown", e => { if (e.key === "Enter") save(); if (e.key === "Escape") close(); });
 
     const apps = r.querySelector(".tb-apps");
-    if (game) apps.addEventListener("click", e => { e.stopPropagation(); setLeaderboard(!lbOpen); });
-    r.querySelector(".lb-close").addEventListener("click", () => setLeaderboard(false));
+    if (game) {
+      apps.addEventListener("click", e => { e.stopPropagation(); setLeaderboard(!lbOpen); });
+      r.querySelector(".tb-lb .lb-close").addEventListener("click", () => setLeaderboard(false));
+    }
+    const rules = r.querySelector(".tb-rules");  // home screen: the grid shows the rules instead
+    if (rules && !game) {
+      apps.addEventListener("click", e => { e.stopPropagation(); pop.hidden = true; rules.hidden = !rules.hidden; });
+      rules.addEventListener("click", e => e.stopPropagation());
+      rules.querySelector(".rules-close").addEventListener("click", () => { rules.hidden = true; });
+      r.querySelector(".tb-profile").addEventListener("click", () => { rules.hidden = true; });
+    }
   });
-  document.addEventListener("click", () => roots.forEach(r => { r.querySelector(".tb-pop").hidden = true; }));
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape") roots.forEach(r => { r.querySelector(".tb-pop").hidden = true; });
+  const closeFloating = () => roots.forEach(r => {
+    r.querySelector(".tb-pop").hidden = true;
+    const rules = r.querySelector(".tb-rules");
+    if (rules) rules.hidden = true;
   });
+  document.addEventListener("click", closeFloating);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeFloating(); });
 
   renderProfile();
   renderLeaderboard();

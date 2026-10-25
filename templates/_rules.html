@@ -1,0 +1,28 @@
+<div class="tb-rules" hidden>
+  <div class="lb-head"><b>How to play</b><button type="button" class="lb-close rules-close" aria-label="Close">&times;</button></div>
+  <h4>The game</h4>
+  <ul>
+    <li>Host a game and share the code. {{ rules.min_players }}&ndash;{{ rules.max_players }} players can join, and the host starts it.</li>
+    <li>A game is {{ rules.rounds }} rounds. Each round asks one obscure question that takes several lookups, so no single search gives the answer.</li>
+    <li>Find the answer with SCRAPR&rsquo;s search and type it into the answer box. Capital letters, accents and &ldquo;the&rdquo; don&rsquo;t matter.</li>
+    <li>Everything stays inside SCRAPR: result links open in the in-app viewer.</li>
+  </ul>
+  <h4>Search rule</h4>
+  <ul>
+    <li>You can&rsquo;t search with any word from the question. Small words like &ldquo;the&rdquo; and &ldquo;of&rdquo; are fine, and plurals count as the same word.</li>
+  </ul>
+  <h4>Scoring</h4>
+  <ul>
+    <li>A correct answer starts at <b>{{ rules.base }}</b> points.</li>
+    <li>&minus;{{ rules.per_sec }} per second (up to &minus;{{ rules.max_time }}).</li>
+    <li>&minus;{{ rules.per_click }} per link you click (up to &minus;{{ rules.max_click }}).</li>
+    <li>&minus;{{ rules.per_wrong }} per wrong guess (up to &minus;{{ rules.max_wrong }}).</li>
+    <li>A correct answer is always worth at least {{ rules.floor }}. No correct answer scores 0.</li>
+  </ul>
+  <h4>Timers</h4>
+  <ul>
+    <li>When one player gets it right, everyone else has {{ rules.grace }} seconds to finish.</li>
+    <li>A round also ends after {{ rules.limit_min }} minutes if nobody solves it. There are {{ rules.intermission }} seconds between rounds.</li>
+    <li>The highest total after the last round wins. Equal totals are a draw.</li>
+  </ul>
+</div>
