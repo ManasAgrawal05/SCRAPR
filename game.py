@@ -78,7 +78,7 @@ class Game:
         self.started_at = None
         self.events = []  # tracking log: searches and result clicks, t = seconds since start
         self.stats = {}
-        self.settings = {"difficulty": "difficult", "block_words": True}  # host edits these in the lobby
+        self.settings = {"difficulty": "easy", "block_words": True}  # host edits these in the lobby
         self.engine = engines[mode]()
         self.version = 0  # bumps on every change, so clients can poll cheaply
         self.touched = time.time()

@@ -74,7 +74,7 @@ QUESTIONS = {
     ],
 }
 ALL_QUESTIONS = [q for pool in QUESTIONS.values() for q in pool]
-DEFAULT_SETTINGS = {"difficulty": "difficult", "block_words": True}
+DEFAULT_SETTINGS = {"difficulty": "easy", "block_words": True}
 
 
 _SPECIAL = str.maketrans({"ø": "o", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l"})
