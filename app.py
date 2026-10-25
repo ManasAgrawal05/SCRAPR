@@ -12,7 +12,7 @@ import proxy
 import quiz
 import shopping
 from modes import DEFAULT_MODE, MODES
-from game import MAX_PLAYERS, MIN_PLAYERS, GameError, GameManager
+from game import DEFAULT_SETTINGS, MAX_PLAYERS, MIN_PLAYERS, ROUND_CHOICES, TIMER_CHOICES, GameError, GameManager
 
 SERPAPI_URL = "https://serpapi.com/search.json"
 PAGE_SIZE = 10
@@ -39,12 +39,15 @@ games = GameManager({m["id"]: m["engine"] for m in MODES if m["engine"]})
 
 # Numbers shown in the Rules panel come from the engine's constants, so the text can't drift from the game.
 RULES = dict(
-    rounds=min(quiz.ROUNDS, *(len(v) for v in quiz.QUESTIONS.values())), min_players=MIN_PLAYERS, max_players=MAX_PLAYERS,
+    rounds=DEFAULT_SETTINGS["rounds"], round_text=", ".join(map(str, ROUND_CHOICES[:-1])) + " or " + str(ROUND_CHOICES[-1]),
+    timer_text=", ".join(f"{t} seconds" if t < 60 else f"{t // 60} minute{'s' if t > 60 else ''}" for t in TIMER_CHOICES[:-1])
+    + " or " + f"{TIMER_CHOICES[-1] // 60} minutes",
+    min_players=MIN_PLAYERS, max_players=MAX_PLAYERS,
     base=quiz.BASE, per_sec=quiz.TIME_PENALTY_PER_SEC, max_time=quiz.MAX_TIME_PENALTY,
     per_click=quiz.CLICK_PENALTY, max_click=quiz.MAX_CLICK_PENALTY,
     per_wrong=quiz.WRONG_PENALTY, max_wrong=quiz.MAX_WRONG_PENALTY,
     floor=quiz.BASE - quiz.MAX_TIME_PENALTY - quiz.MAX_CLICK_PENALTY - quiz.MAX_WRONG_PENALTY,
-    grace=quiz.GRACE, limit_min=quiz.ROUND_LIMIT // 60, intermission=quiz.INTERMISSION,
+    grace=DEFAULT_SETTINGS["timer"], limit_min=quiz.ROUND_LIMIT // 60, intermission=quiz.INTERMISSION,
     shop_base=shopping.BASE, shop_rating=shopping.RATING_PTS, shop_cost=shopping.COST_PTS, shop_speed=shopping.SPEED_PTS,
     shop_window=shopping.SPEED_WINDOW, shop_wrong=shopping.WRONG_PENALTY,
 )

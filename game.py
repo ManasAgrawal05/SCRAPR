@@ -9,6 +9,13 @@ ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
 ID_LENGTH = 5
 MAX_PLAYERS = 8  # artificial cap
 MIN_PLAYERS = 2
+ROUND_CHOICES = (1, 3, 5, 7)
+TIMER_CHOICES = (10, 30, 60, 120, 300)  # seconds everyone else gets once the first player finishes a round
+DEFAULT_SETTINGS = {
+    "rounds": 3, "timer": 60,                       # every mode
+    "difficulty": "easy", "block_words": True,      # quiz
+    "use_rating": True, "use_cost": True,           # shopping: score star ratings / score price
+}
 AVATAR_PREFIX = "data:image/jpeg;base64,"
 AVATAR_MAX = 40000  # characters; the browser downsizes to ~96px
 STALE_AFTER = 6 * 3600
@@ -78,7 +85,7 @@ class Game:
         self.started_at = None
         self.events = []  # tracking log: searches and result clicks, t = seconds since start
         self.stats = {}
-        self.settings = {"difficulty": "easy", "block_words": True}  # host edits these in the lobby
+        self.settings = dict(DEFAULT_SETTINGS)  # the host edits these in the lobby
         self.engine = engines[mode]()
         self.version = 0  # bumps on every change, so clients can poll cheaply
         self.touched = time.time()
@@ -145,8 +152,13 @@ class Game:
             raise GameError("Settings are locked once the game starts", 409)
         if data.get("difficulty") in ("easy", "difficult"):
             self.settings["difficulty"] = data["difficulty"]
-        if isinstance(data.get("block_words"), bool):
-            self.settings["block_words"] = data["block_words"]
+        for key in ("block_words", "use_rating", "use_cost"):
+            if isinstance(data.get(key), bool):
+                self.settings[key] = data[key]
+        for key, allowed in (("rounds", ROUND_CHOICES), ("timer", TIMER_CHOICES)):
+            value = data.get(key)
+            if type(value) is int and value in allowed:  # (type check: JSON true must not pass as 1)
+                self.settings[key] = value
         self._bump()
 
     def player_for(self, token):

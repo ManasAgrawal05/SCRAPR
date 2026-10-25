@@ -87,13 +87,14 @@
     const box = root.querySelector('[data-view="settings"]');
     if (!box || !snapshot) return;
     const st = snapshot.settings, lobby = snapshot.status === "waiting" || snapshot.status === "ready";
-    const quizMode = snapshot.mode === "all";  // difficulty and the key-word limit only apply to the quiz
-    const editable = isHost && lobby && quizMode;
-    box.querySelectorAll(".seg button").forEach(b => { b.classList.toggle("on", b.dataset.v === st.difficulty); b.disabled = !editable; });
-    const chk = box.querySelector(".set-block");
-    chk.checked = st.block_words;
-    chk.disabled = !editable;
-    box.querySelector(".set-note").textContent = !quizMode ? "This game mode has no settings yet." : editable ? ""
+    const editable = isHost && lobby;
+    box.querySelectorAll("[data-modes]").forEach(r => { r.hidden = !r.dataset.modes.split(" ").includes(snapshot.mode); });  // options of the other modes
+    box.querySelectorAll(".seg[data-key]").forEach(seg => seg.querySelectorAll("button").forEach(b => {
+      b.classList.toggle("on", String(st[seg.dataset.key]) === b.dataset.v);
+      b.disabled = !editable;
+    }));
+    box.querySelectorAll("input[data-key]").forEach(i => { i.checked = !!st[i.dataset.key]; i.disabled = !editable; });
+    box.querySelector(".set-note").textContent = editable ? ""
       : lobby ? "Only the host can change these." : "Settings are locked once the game starts.";
   }
 
@@ -201,15 +202,19 @@
         if (res.ok) take(await res.json());
       } catch (_) {}
     };
-    menu.querySelectorAll('[data-view="settings"] .seg button').forEach(b => b.addEventListener("click", () => patchSettings({ difficulty: b.dataset.v })));
-    const chk = menu.querySelector(".set-block");
-    if (chk) chk.addEventListener("change", e => patchSettings({ block_words: e.target.checked }));
+    menu.querySelectorAll('[data-view="settings"] .seg[data-key] button').forEach(b => b.addEventListener("click", () => {
+      const v = b.dataset.v;
+      patchSettings({ [b.parentElement.dataset.key]: /^\d+$/.test(v) ? Number(v) : v });
+    }));
+    menu.querySelectorAll('[data-view="settings"] input[data-key]').forEach(i => i.addEventListener("change", e => patchSettings({ [i.dataset.key]: e.target.checked })));
   });
 
   // The home screen's card is a transient popup; in a game the menu stays put until closed.
   const dismiss = () => { closePopovers(); if (!game && menuOpen) setOpen(false); };
   document.addEventListener("click", dismiss);
   document.addEventListener("keydown", e => { if (e.key === "Escape") dismiss(); });
+
+  window.addEventListener("scrapr:game", e => take(e.detail));  // the lobby page pushes fresh state (e.g. after a mode change)
 
   renderProfile();
   render();

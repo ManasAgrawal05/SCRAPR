@@ -2,8 +2,8 @@
       <h4>The game</h4>
       <ul>
         <li>Host a game and share the code. {{ rules.min_players }}&ndash;{{ rules.max_players }} players can join, and the host starts it.</li>
-        <li>A game is {{ rules.rounds }} rounds. Each round asks one question. The highest total after the last round wins, and equal totals are a draw.</li>
-        <li>The host picks the settings from the grid menu in the lobby: <b>easy</b> questions (one lookup) or <b>difficult</b> ones (several lookups chained together, so no single search gives the answer), and whether the search rule below is on.</li>
+        <li>A game is {{ rules.rounds }} rounds unless the host picks another number ({{ rules.round_text }}). Each round asks one question. The highest total after the last round wins, and equal totals are a draw.</li>
+        <li>The host picks the settings from the grid menu in the lobby: the number of rounds, the timer length, and the mode&rsquo;s own options. For the quiz that&rsquo;s <b>easy</b> questions (one lookup) or <b>difficult</b> ones (several lookups chained together, so no single search gives the answer), and whether the search rule below is on.</li>
       </ul>
       <h4>Answering</h4>
       <ul>
@@ -25,12 +25,12 @@
       </ul>
       <h4>Timers</h4>
       <ul>
-        <li>When one player gets it right, everyone else has {{ rules.grace }} seconds to finish.</li>
+        <li>When one player finishes, a countdown starts for everyone else. The host sets its length ({{ rules.timer_text }}); the default is {{ rules.grace }} seconds.</li>
         <li>A round also ends after {{ rules.limit_min }} minutes if nobody solves it. There are {{ rules.intermission }} seconds between rounds.</li>
       </ul>
           <h4>Shopping mode</h4>
       <ul>
-        <li>You&rsquo;re given an item to find. Search, click one listing to select it, then press <b>Submit selection</b>. The listing has to mention the item in its title, description or store name. No search restrictions here.</li>
+        <li>You&rsquo;re given an item to find. Search, click one listing to select it, then press <b>Submit selection</b>. The listing has to mention the item in its title, description or store name. No search restrictions here. The host can switch the star-rating points and the price points on or off.</li>
         <li>A matching listing starts at <b>{{ rules.shop_base }}</b> points, plus up to <b>{{ rules.shop_rating }}</b> for its star rating (3 stars is 0, 5 stars is the full amount, no rating is 0), up to <b>{{ rules.shop_cost }}</b> for a low price (measured against a normal price range for that item), and up to <b>{{ rules.shop_speed }}</b> for speed (fading over {{ rules.shop_window // 60 }} minutes).</li>
         <li>&minus;{{ rules.shop_wrong }} for each submission that doesn&rsquo;t match the item. Rounds, timers and the leaderboard work as above.</li>
       </ul>

@@ -7,8 +7,8 @@ the listing, never from numbers sent by the browser."""
 import hashlib
 import random
 
-from game import GameError
-from quiz import QuizEngine, ROUNDS
+from game import DEFAULT_SETTINGS, GameError
+from quiz import QuizEngine
 
 # ---- scoring (adds up to 1000) ----------------------------------------------
 BASE = 200                 # any listing that matches the task
@@ -24,13 +24,23 @@ RATING_FLOOR = 3.0
 # cheaper is an accessory or a fake and doesn't count. lo/hi is the price range (USD) cost points are measured against.
 # Only tasks checked against real Google Shopping results are listed; probe a query before adding one.
 TASKS = [
-    {"question": "Find a Stanley tumbler: pick a highly rated, cheap listing and submit it.", "label": "Stanley tumbler",
-     "must": ["stanley", "tumbler"], "min": 10, "lo": 20, "hi": 70},
-    {"question": "Find Sony headphones: pick a highly rated, cheap listing and submit it.", "label": "Sony headphones",
-     "must": ["sony", "headphone"], "min": 25, "lo": 50, "hi": 450},
-    {"question": "Find a Dior handbag: pick a highly rated, cheap listing and submit it.", "label": "Dior handbag",
-     "must": ["dior", ["handbag", "bag", "tote", "purse"]], "min": 400, "lo": 1000, "hi": 6500},
+    {"find": "a Stanley tumbler", "label": "Stanley tumbler", "must": ["stanley", "tumbler"], "min": 10, "lo": 20, "hi": 70},
+    {"find": "Sony headphones", "label": "Sony headphones", "must": ["sony", "headphone"], "min": 25, "lo": 50, "hi": 450},
+    {"find": "a Dior handbag", "label": "Dior handbag", "must": ["dior", ["handbag", "bag", "tote", "purse"]], "min": 400, "lo": 1000, "hi": 6500},
+    {"find": "an Instant Pot", "label": "Instant Pot", "must": ["instant pot"], "min": 60, "lo": 70, "hi": 200},
+    {"find": "Nike running shoes", "label": "Nike running shoes", "must": ["nike", "running", ["shoe", "sneaker"]], "min": 40, "lo": 60, "hi": 200},
+    {"find": "a LEGO Star Wars set", "label": "LEGO Star Wars set", "must": ["lego", "star wars"], "min": 12, "lo": 15, "hi": 160},
+    {"find": "a Dyson vacuum", "label": "Dyson vacuum", "must": ["dyson", ["vacuum", "cleaner"]], "min": 100, "lo": 250, "hi": 700},
 ]
+
+
+def make_question(find, use_rating, use_cost):
+    """The prompt follows the host's scoring switches, so it never asks for something that isn't scored."""
+    wants = (["highly rated"] if use_rating else []) + (["cheap"] if use_cost else [])
+    if wants:
+        return f"Find {find}: pick a {' and '.join(wants)} listing and submit it."
+    return f"Find {find}: submit any matching listing, as fast as you can."
+
 
 # ---- listings the server has shown, by id (so a submit can't claim made-up numbers) ----------
 ITEMS = {}
@@ -87,13 +97,17 @@ def _clamp(x):
     return max(0.0, min(1.0, x))
 
 
-def breakdown(item, task, seconds, wrong):
-    rating = RATING_PTS * _clamp((item["rating"] - RATING_FLOOR) / (5.0 - RATING_FLOOR)) if item["rating"] else 0
-    cost = COST_PTS * (1 - _clamp((item["price"] - task["lo"]) / (task["hi"] - task["lo"])))
-    speed = SPEED_PTS * _clamp(1 - seconds / SPEED_WINDOW)
+def breakdown(item, task, seconds, wrong, use_rating=True, use_cost=True):
+    """Points by part. A switched-off part is None (shown as absent) and adds nothing."""
+    rating = cost = None
+    if use_rating:
+        rating = round(RATING_PTS * _clamp((item["rating"] - RATING_FLOOR) / (5.0 - RATING_FLOOR))) if item["rating"] else 0
+    if use_cost:
+        cost = round(COST_PTS * (1 - _clamp((item["price"] - task["lo"]) / (task["hi"] - task["lo"]))))
+    speed = round(SPEED_PTS * _clamp(1 - seconds / SPEED_WINDOW))
     penalty = min(MAX_WRONG_PENALTY, WRONG_PENALTY * wrong)
-    parts = {"base": BASE, "rating": round(rating), "cost": round(cost), "speed": round(speed), "wrong": -penalty}
-    parts["total"] = sum(parts.values())
+    parts = {"base": BASE, "rating": rating, "cost": cost, "speed": speed, "wrong": -penalty}
+    parts["total"] = BASE + (rating or 0) + (cost or 0) + speed - penalty
     return parts
 
 
@@ -105,9 +119,13 @@ class ShoppingEngine(QuizEngine):
     kind = "shopping"
 
     def start(self, players, settings=None):
+        settings = {**DEFAULT_SETTINGS, **(settings or {})}
         self.block_words = False  # no search restrictions in this mode
+        self.grace = settings["timer"]
+        self.use_rating, self.use_cost = bool(settings["use_rating"]), bool(settings["use_cost"])
         self.pids = [p["id"] for p in players]
-        self.rounds = random.sample(TASKS, min(ROUNDS, len(TASKS)))
+        picked = random.sample(TASKS, min(settings["rounds"], len(TASKS)))
+        self.rounds = [{**t, "question": make_question(t["find"], self.use_rating, self.use_cost)} for t in picked]
         self.totals = {pid: 0 for pid in self.pids}
         self.history = []
         self.index = -1
@@ -135,7 +153,7 @@ class ShoppingEngine(QuizEngine):
             me["wrong"] += 1
             return {"correct": False, "message": reason}
         seconds = round(self.clock() - self.round_started, 2)
-        parts = breakdown(item, task, seconds, me["wrong"])
+        parts = breakdown(item, task, seconds, me["wrong"], self.use_rating, self.use_cost)
         me["pick"], me["breakdown"] = summary(item), parts
         self._mark_solved(me, parts["total"])
         return {"correct": True, "points": parts["total"], "breakdown": parts}

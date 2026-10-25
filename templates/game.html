@@ -58,10 +58,12 @@
       return;
     }
     preview = null;
-    await fetch("/api/games/" + id + "/mode", {
+    const res = await fetch("/api/games/" + id + "/mode", {
       method: "POST", headers: { "Content-Type": "application/json", "X-Player-Token": me.token },
       body: JSON.stringify({ mode: t.dataset.mode }),
     });
+    // tell the settings panel right away, so its options switch with the tab instead of on its next poll
+    if (res.ok) window.dispatchEvent(new CustomEvent("scrapr:game", { detail: await res.json() }));
     poll();
   }));
   $("btnStart").addEventListener("click", async () => {

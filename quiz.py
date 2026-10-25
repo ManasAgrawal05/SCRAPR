@@ -5,7 +5,7 @@ import re
 import time
 import unicodedata
 
-from game import Engine, GameError
+from game import DEFAULT_SETTINGS, Engine, GameError
 
 ROUNDS = 3
 GRACE = 60            # seconds the other player gets after the first correct answer
@@ -74,7 +74,6 @@ QUESTIONS = {
     ],
 }
 ALL_QUESTIONS = [q for pool in QUESTIONS.values() for q in pool]
-DEFAULT_SETTINGS = {"difficulty": "easy", "block_words": True}
 
 
 _SPECIAL = str.maketrans({"ø": "o", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l"})
@@ -156,6 +155,7 @@ class QuizEngine(Engine):
     kind = "quiz"
 
     def __init__(self):
+        self.grace = GRACE
         self.clock = time.time
         self.finished = False
 
@@ -165,7 +165,8 @@ class QuizEngine(Engine):
         self.block_words = bool(settings["block_words"])
         pool = QUESTIONS[settings["difficulty"]]
         self.pids = [p["id"] for p in players]
-        self.rounds = random.sample(pool, min(ROUNDS, len(pool)))
+        self.grace = settings["timer"]
+        self.rounds = random.sample(pool, min(settings["rounds"], len(pool)))
         self.totals = {pid: 0 for pid in self.pids}
         self.history = []
         self.index = -1
@@ -217,7 +218,7 @@ class QuizEngine(Engine):
         if all(p["status"] != "searching" for p in self.p.values()):
             self._end_round(now)
         elif self.deadline is None:
-            self.deadline = now + GRACE
+            self.deadline = now + self.grace
 
     def tick(self):
         """Advance timers lazily; called before every read/write."""

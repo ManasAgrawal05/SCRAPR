@@ -313,3 +313,7 @@ a.shop-title:hover { text-decoration: underline; }
 .ov-picks { text-align: left; margin: 0 0 14px; padding: 0; list-style: none; font-size: 13px; }
 .ov-picks li { padding: 4px 0; border-bottom: 1px solid var(--border); }
 .ov-picks small { color: var(--muted); display: block; }
+
+.set-row { flex-wrap: wrap; }
+.set-row[hidden] { display: none; }
+.seg button { padding: 6px 12px; }

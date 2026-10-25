@@ -38,14 +38,34 @@
       <div class="menu-head"><button type="button" class="menu-back" aria-label="Back">&larr;</button><b>Settings</b><button type="button" class="menu-close" aria-label="Close">&times;</button></div>
       <div class="menu-body">
         <div class="set-row">
+          <span>Rounds</span>
+          <div class="seg" data-key="rounds" role="group" aria-label="Number of rounds">
+            <button type="button" data-v="1">1</button><button type="button" data-v="3">3</button><button type="button" data-v="5">5</button><button type="button" data-v="7">7</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <span>Timer once someone finishes</span>
+          <div class="seg" data-key="timer" role="group" aria-label="Countdown for the other players">
+            <button type="button" data-v="10">10s</button><button type="button" data-v="30">30s</button><button type="button" data-v="60">60s</button><button type="button" data-v="120">2 min</button><button type="button" data-v="300">5 min</button>
+          </div>
+        </div>
+        <div class="set-row" data-modes="all">
           <span>Questions</span>
-          <div class="seg" role="group" aria-label="Question difficulty">
+          <div class="seg" data-key="difficulty" role="group" aria-label="Question difficulty">
             <button type="button" data-v="easy">Easy</button><button type="button" data-v="difficult">Difficult</button>
           </div>
         </div>
-        <label class="set-row">
+        <label class="set-row" data-modes="all">
           <span>Limit the question&rsquo;s key words in searches (max 2)</span>
-          <input type="checkbox" class="switch set-block">
+          <input type="checkbox" class="switch" data-key="block_words">
+        </label>
+        <label class="set-row" data-modes="shopping">
+          <span>Score star ratings (quality)</span>
+          <input type="checkbox" class="switch" data-key="use_rating">
+        </label>
+        <label class="set-row" data-modes="shopping">
+          <span>Score price (cost)</span>
+          <input type="checkbox" class="switch" data-key="use_cost">
         </label>
         <div class="set-note"></div>
       </div>

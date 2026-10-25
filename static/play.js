@@ -116,7 +116,12 @@
         if (r.pick) {
           li.append(document.createTextNode(name(p.id) + ": " + r.pick.title + " — " + r.pick.price_text + (r.pick.rating ? " · ★" + r.pick.rating : "")));
           const b = r.breakdown;
-          li.append(el("small", "", "rating +" + b.rating + " · price +" + b.cost + " · speed +" + b.speed + (b.wrong ? " · wrong picks " + b.wrong : "") + " = " + b.total));
+          const parts = [];  // a scoring part the host switched off is null, so it isn't listed
+          if (b.rating !== null) parts.push("rating +" + b.rating);
+          if (b.cost !== null) parts.push("price +" + b.cost);
+          parts.push("speed +" + b.speed);
+          if (b.wrong) parts.push("wrong picks " + b.wrong);
+          li.append(el("small", "", parts.join(" · ") + " = " + b.total));
         } else li.append(document.createTextNode(name(p.id) + ": no pick"));
         picks.append(li);
       });
