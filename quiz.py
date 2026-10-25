@@ -52,6 +52,32 @@ def normalize(text):
     return re.sub(r"^(the|a|an) ", "", text)
 
 
+# Players may not search with any word from the question (function words are exempt).
+STOPWORDS = frozenset("""a an the of in on at to for and or is are was were be been by with from as that this these those
+it its what which who whom whose how do does did has have had not no than then there their his her they them he she you
+your i we our so if but into out up over under about after before between per each every can will would should could
+may might""".split())
+
+
+def tokens(text):
+    text = unicodedata.normalize("NFKD", str(text).lower().translate(_SPECIAL))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.findall(r"[a-z0-9]+", text)
+
+
+def stem(word):
+    """Crude plural folding so 'rivers' can't dodge a ban on 'river'. Mirrored in static/play.js."""
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        return word[:-1]
+    return word
+
+
+def banned_stems(question):
+    return {stem(w) for w in tokens(question) if len(w) > 1 and w not in STOPWORDS}
+
+
 def score(seconds, clicks, wrong):
     return (BASE
             - min(MAX_TIME_PENALTY, round(TIME_PENALTY_PER_SEC * seconds))
@@ -79,6 +105,7 @@ class QuizEngine(Engine):
         self.round_started = now
         self.deadline = None
         self.next_at = None
+        self.banned = banned_stems(self.rounds[self.index]["question"])
         self.p = {pid: {"status": "searching", "time": None, "points": 0, "clicks": 0, "searches": 0, "wrong": 0}
                   for pid in self.pids}
 
@@ -137,6 +164,12 @@ class QuizEngine(Engine):
             self.deadline = now + GRACE
         return {"correct": True, "points": me["points"]}
 
+    def blocked_words(self, query):
+        """Words in `query` that the current question forbids (empty = fine to search)."""
+        if getattr(self, "phase", None) != "round":
+            return []
+        return sorted({w for w in tokens(query) if stem(w) in self.banned})
+
     # -- public state ------------------------------------------------------
     def state(self):
         s = {
@@ -150,6 +183,7 @@ class QuizEngine(Engine):
             "players": self.p,
             "totals": self.totals,
             "history": self.history,
+            "banned": sorted(self.banned) if self.phase == "round" else [],
             "winner": None,
         }
         if self.finished:

@@ -3,6 +3,7 @@
 {% block bodyclass %}results{% endblock %}
 {% block body %}
 <div class="sticky-top">
+{% if blocked %}{% set page = '' %}{% endif %}{# a blocked search must not count as a search #}
 {% if question %}{% include "_hud.html" %}{% endif %}
 <header class="result-header">
   <a href="{{ '/game/' ~ game if game else '/' }}" class="mini-logo"><img src="{{ url_for('static', filename='logo.svg') }}" alt="SCRAPR" height="30"></a>
@@ -17,7 +18,10 @@
 
 <div class="content">
   <main class="main-col">
-    {% if error %}
+    {% if blocked %}
+      <div class="notice"><b>That search uses words from the question.</b><br>
+        Not allowed: <b>{{ blocked|join(', ') }}</b>. Try describing it a different way.</div>
+    {% elif error %}
       <div class="notice"><b>Search failed.</b><br>{{ error }}</div>
     {% else %}
       {% if total %}<div class="stats">About {{ total|num }} results{% if took %} ({{ took }} seconds){% endif %}</div>{% endif %}

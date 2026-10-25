@@ -219,20 +219,26 @@ def search():
         start = max(0, int(request.args.get("start", 0)))
     except ValueError:
         start = 0
-    game_id, question = request.args.get("game", "").strip().upper(), None
+    game_id, question, g, blocked = request.args.get("game", "").strip().upper(), None, None, []
     if game_id:
         try:
             g = games.get(game_id)
             with g.lock:
                 state = g.view()["state"]
+                blocked = g.blocked_words(q)
             question = state and state["question"]
         except GameError:
             game_id = ""
     data, error = {}, None
-    try:
-        data = serpapi({"engine": "google", "q": q, "start": start, "num": PAGE_SIZE})
-    except SearchError as e:
-        error = str(e)
+    if not blocked:  # a blocked search never reaches SerpAPI, so it costs no credit
+        try:
+            data = serpapi({"engine": "google", "q": q, "start": start, "num": PAGE_SIZE})
+        except SearchError as e:
+            error = str(e)
+    related = data.get("related_searches", [])
+    if g:  # don't offer follow-up searches that break the rule
+        with g.lock:
+            related = [s for s in related if not g.blocked_words(s.get("query", ""))]
 
     results = data.get("organic_results", [])
     for r in results:
@@ -256,7 +262,8 @@ def search():
         answer=data.get("answer_box"),
         kg=data.get("knowledge_graph"),
         paa=data.get("related_questions", []),
-        related=data.get("related_searches", []),
+        related=related,
+        blocked=blocked,
         has_next="next" in data.get("serpapi_pagination", {}),
         error=error,
     )
@@ -279,11 +286,25 @@ def suggest():
     q = request.args.get("q", "").strip()
     if not q or os.environ.get("ENABLE_SUGGEST", "1") != "1":
         return jsonify([])
+    game = None
+    if request.args.get("game"):
+        try:
+            game = games.get(request.args["game"])
+        except GameError:
+            pass
+    allowed = lambda text: True
+    if game:
+        with game.lock:
+            if game.blocked_words(q):
+                return jsonify([])  # typed text already breaks the rule: skip the API call
+        def allowed(text):
+            with game.lock:
+                return not game.blocked_words(text)
     try:
         data = serpapi({"engine": "google_autocomplete", "q": q})
     except SearchError:
         return jsonify([])
-    return jsonify([s["value"] for s in data.get("suggestions", [])][:8])
+    return jsonify([s["value"] for s in data.get("suggestions", []) if allowed(s["value"])][:8])
 
 
 if __name__ == "__main__":

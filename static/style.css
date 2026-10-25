@@ -212,3 +212,6 @@ body.viewer { display: flex; flex-direction: column; height: 100vh; }
 .question-bar .qtext { flex: 1 1 0; min-width: 200px; }
 .question-bar .gamestats { flex: none; }
 .pop-file { display: inline-flex; align-items: center; }
+.searchbox-wrap { position: relative; }
+.banned-note { position: absolute; left: 20px; top: calc(100% + 4px); color: #d93025; font-size: 12px; z-index: 4; }
+.banned-note[hidden] { display: none; }

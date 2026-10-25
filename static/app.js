@@ -47,14 +47,27 @@
   };
   const highlight = () => [...list.children].forEach((li, i) => li.classList.toggle("sel", i === idx));
 
+  // In a game, words from the question can't be searched (play.js knows the list).
+  const note = form.parentElement.querySelector(".banned-note");
+  const offending = () => (window.scraprCheck ? window.scraprCheck(input.value) : []);
+  const warn = () => {
+    if (!note) return;
+    const bad = offending();
+    note.hidden = !bad.length;
+    note.textContent = bad.length ? "Can't use words from the question: " + bad.join(", ") : "";
+  };
+  form.addEventListener("submit", e => { if (offending().length) { e.preventDefault(); warn(); } });
+
   input.addEventListener("input", () => {
+    warn();
     clearTimeout(timer);
     const q = input.value.trim();
     if (!q) { items = []; return hide(); }
     timer = setTimeout(async () => {
       const my = ++seq;
       try {
-        const r = await fetch("/suggest?q=" + encodeURIComponent(q));
+        const gm = form.querySelector("input[name=game]");
+        const r = await fetch("/suggest?q=" + encodeURIComponent(q) + (gm ? "&game=" + encodeURIComponent(gm.value) : ""));
         const data = await r.json();
         if (my === seq) { items = data; idx = -1; render(); }
       } catch (_) {}

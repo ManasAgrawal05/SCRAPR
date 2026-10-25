@@ -46,6 +46,10 @@ class Engine:
 
     finished = False
 
+    def blocked_words(self, query):
+        """Words of `query` that may not be searched right now."""
+        return []
+
     def tick(self):
         """Advance any timers. Called before every read or write, lock held."""
 
@@ -153,6 +157,10 @@ class Game:
         self._sync()
         self._bump()
         return result
+
+    def blocked_words(self, query):
+        self._sync()
+        return self.engine.blocked_words(query) if self.status == "playing" else []
 
     def _sync(self):
         """Let the engine move its timers on, and pick up game over."""

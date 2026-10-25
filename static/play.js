@@ -27,6 +27,17 @@
   };
   const post = (path, body) => api(path, body).then(r => { if (r && r.ok) apply(r.data); return r; });
 
+  // Same word rules as quiz.py (tokens / stem): a search may not reuse words from the question.
+  const SPECIAL = { "ø": "o", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l" };
+  const words = t => t.toLowerCase().replace(/[øæßđł]/g, c => SPECIAL[c]).normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]+/g) || [];
+  const stem = w => w.endsWith("ies") && w.length > 4 ? w.slice(0, -3) + "y"
+    : w.endsWith("s") && !w.endsWith("ss") && w.length > 3 ? w.slice(0, -1) : w;
+  window.scraprCheck = text => {
+    const banned = new Set((game && game.state && game.state.banned) || []);
+    return [...new Set(words(text).filter(w => banned.has(stem(w))))];
+  };
+
   const apply = g => { offset = g.now - Date.now() / 1000; game = g; render(); };
   const poll = () => fetch("/api/games/" + id).then(r => r.ok ? r.json() : null).then(g => g && apply(g)).catch(() => {});
 

@@ -7,4 +7,5 @@
     {% if game %}<input type="hidden" name="game" value="{{ game }}">{% endif %}
     <ul class="suggestions" hidden></ul>
   </form>
+  {% if game %}<div class="banned-note" hidden></div>{% endif %}
 </div>
