@@ -1,0 +1,10 @@
+# Copy to ~/.cloudflared/config.yml and fill in the tunnel UUID (printed by `cloudflared tunnel create scrapr`).
+tunnel: <TUNNEL-UUID>
+credentials-file: /home/<you>/.cloudflared/<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: scrapr.tech
+    service: http://127.0.0.1:8000
+  - hostname: www.scrapr.tech
+    service: http://127.0.0.1:8000
+  - service: http_status:404
